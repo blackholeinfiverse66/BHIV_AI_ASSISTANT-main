@@ -1,7 +1,7 @@
-# BHIV-AI-ASSISTANT
+# BHIV-AI-ASSISTANT v3.0.0
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green.svg)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-3.0.0-green.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-Frontend-blue.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Frontend-blue.svg)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
@@ -80,7 +80,7 @@ cp .env.example .env.local  # Edit with API configuration
 
 # Start servers (in separate terminals)
 # Terminal 1 - Backend:
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 # Terminal 2 - Frontend:
 cd frontend && npm run dev
@@ -88,10 +88,10 @@ cd frontend && npm run dev
 
 ### 3. Access Applications
 - **🎨 Frontend App** → http://localhost:5173 (React/TypeScript client)
-- **🔧 Backend API** → http://localhost:8000
-- **📚 API Docs** → http://localhost:8000/docs
-- **💚 Health Check** → http://localhost:8000/health
-- **📊 Metrics** → http://localhost:8000/metrics
+- **🔧 Backend API** → http://127.0.0.1:8000
+- **📚 API Docs** → http://127.0.0.1:8000/docs
+- **💚 Health Check** → http://127.0.0.1:8000/health
+- **📊 Metrics** → http://127.0.0.1:8000/metrics
 
 ---
 
@@ -146,6 +146,7 @@ npm run dev
 - **React Hook Form** + **Zod** for forms
 - **Tailwind-like CSS** with custom design system
 - **Vitest** + **Testing Library** for testing
+- **Single API Helper**: `apiPost` function for all backend communication (handles auth, errors, FormData/JSON)
 
 ---
 
@@ -234,7 +235,7 @@ npm run dev
 # ⚙️ Configuration
 
 ### Required
-- `API_KEY`
+- `API_KEY=bhiv_demo_key_12345`
 - `JWT_SECRET_KEY`
 
 ### LLM Keys
@@ -281,6 +282,7 @@ npm run dev
 │   │   │   └── layout/            # Layout components
 │   │   ├── api/                   # API client & types
 │   │   ├── components/            # Reusable UI components
+│   │   ├── lib/                   # API helper functions
 │   │   ├── pages/                 # Page components
 │   │   ├── styles/                # CSS
 │   │   └── utils/                 # Utilities
@@ -305,46 +307,52 @@ npm run dev
 
 ### 1. Simple Response
 ```bash
-curl -X POST "http://localhost:8000/api/respond" \
+curl -X POST "http://127.0.0.1:8000/api/respond" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{"text": "What is the weather today?", "model": "chatgpt"}'
+  -H "X-API-Key: bhiv_demo_key_12345" \
+  -d '{"message": "What is the weather today?", "session_id": "test"}'
 ```
 
 ### 2. Full BHIV Multi-Agent Task
 ```bash
-curl -X POST "http://localhost:8000/api/bhiv/run" \
+curl -X POST "http://127.0.0.1:8000/api/bhiv/run" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{"text": "Research renewable energy trends and create a summary"}'
 ```
 
 ### 3. NLU Pipeline
 ```bash
-curl -X POST "http://localhost:8000/api/summarize" \
+curl -X POST "http://127.0.0.1:8000/api/summarize" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{"text": "Your long text"}'
 
-curl -X POST "http://localhost:8000/api/intent" \
+curl -X POST "http://127.0.0.1:8000/api/intent" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{"text": "Remind me to call John tomorrow at 3pm"}'
 
-curl -X POST "http://localhost:8000/api/task" \
+curl -X POST "http://127.0.0.1:8000/api/task" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{
     "intent": "task",
     "entities": {"text": "Call John"},
+    "context": {},
     "text": "Remind me to call John tomorrow at 3pm"
   }'
 ```
 
 ### 4. Secure Embeddings
 ```bash
-curl -X POST "http://localhost:8000/api/embed" \
+curl -X POST "http://127.0.0.1:8000/api/embed" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{
     "texts": ["Hello world"],
     "user_id": "user123",
+    "session_id": "session123",
     "platform": "web"
   }'
 ```
@@ -395,7 +403,12 @@ python -c "from app.main import app; print('BHIV Ready')"
 
 # 📝 Recent Updates
 
-### v1.0.x (Latest)
+### v3.0.0 (Latest)
+- **Frontend API Refactoring**: Implemented single `apiPost` helper for all backend communication, ensuring consistent auth, error handling, and support for both JSON and FormData payloads.
+- **CORS Configuration Update**: Updated CORS middleware to allow origins from `http://localhost:5173` and `http://127.0.0.1:5173` for better development compatibility.
+- **Environment Variables Standardization**: Set default `VITE_API_BASE_URL=http://127.0.0.1:8000/api` and `VITE_API_KEY=bhiv_demo_key_12345` for consistent frontend-backend integration.
+
+### v1.0.x
 - **LLM Bridge Enhancement**: Replaced mock responses with real API integrations for OpenAI (GPT-3.5-turbo), Groq (Mixtral-8x7B), Google Generative AI (Gemini Pro), and Mistral (Mistral Medium). API keys are now required and validated from environment variables.
 - **Project Cleanup**: Removed all `__pycache__` directories across the project for cleaner repository management.
 
