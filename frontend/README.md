@@ -1,85 +1,32 @@
-# BHIV AI Assistant Frontend
+# BHIV Orchestrator UI
 
-A modern React/TypeScript frontend for the BHIV AI Assistant backend system.
+A minimal web UI for the BHIV AI Assistant orchestration flow. Allows users to enter a message and see the system's summary, decision, and execution results.
 
-## Features
+## APIs Consumed
 
-- **Complete API Integration**: All backend endpoints wired with proper TypeScript types
-- **Authentication**: API key and JWT Bearer token support
-- **Responsive UI**: Dark theme with mobile-friendly design
-- **Real-time Updates**: React Query for efficient data fetching
-- **Form Validation**: Zod schemas with React Hook Form
-- **Testing**: Vitest with React Testing Library
-- **Type Safety**: Full TypeScript coverage
+- `POST /api/summarize`
+- `POST /api/decision_hub`
+- `POST /orchestrate`
 
-## Quick Start
+## How to Run Locally
 
-```bash
-# Install dependencies
-npm install
+1. Install dependencies: `npm install`
+2. Set environment variables in `.env.local`:
+   ```
+   VITE_API_BASE_URL=http://127.0.0.1:8000
+   VITE_API_KEY=bhiv_demo_key_12345
+   ```
+3. Start the dev server: `npm run dev`
+4. Open http://localhost:5173/orchestrator
 
-# Start development server
-npm run dev
+## Live Vercel URL
 
-# Run tests
-npm run test
+[https://bhiv-orchestrator.vercel.app](https://bhiv-orchestrator.vercel.app) (placeholder - actual deployment required)
 
-# Build for production
-npm run build
-```
+## Screenshots
 
-## Environment Setup
+### Mobile
+![Mobile Screenshot](screenshots/mobile.png)
 
-Copy `.env.example` to `.env.local` and configure:
-
-```bash
-VITE_API_BASE_URL=http://localhost:8000
-VITE_API_KEY=your_api_key_here
-VITE_DEBUG_API=false
-```
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run test` - Run tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
-
-## Project Structure
-
-```
-src/
-├── api/           # API client and types
-├── app/           # Application logic
-│   ├── auth/      # Authentication
-│   └── layout/    # App layout
-├── components/    # Reusable UI components
-├── pages/         # Page components
-├── styles/        # CSS styles
-├── test/          # Test utilities
-└── utils/         # Utility functions
-```
-
-## Backend Integration
-
-This frontend connects to the BHIV backend API with endpoints for:
-- Chat and conversation management
-- Task management (CRUD operations)
-- NLU processing (summarize, intent, task classification)
-- Embeddings and similarity search
-- Voice processing (STT/TTS)
-- External integrations
-- Decision hub routing
-
-## Development
-
-The project uses modern React patterns with:
-- React Router v6 for routing
-- TanStack Query for data fetching
-- React Hook Form + Zod for forms
-- Tailwind-inspired CSS variables for theming
-- ESLint + Prettier for code quality
-- Vitest for testing
+### Desktop
+![Desktop Screenshot](screenshots/desktop.png)

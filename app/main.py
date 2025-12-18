@@ -134,6 +134,9 @@ async def security_middleware(request: Request, call_next):
     if not request.url.path.startswith("/api"):
         return await call_next(request)
 
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     rate_limit(request)
 
     user = None

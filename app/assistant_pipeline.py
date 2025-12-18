@@ -38,6 +38,17 @@ def process_message(
     5. Response formatting
     """
     try:
+        # Early return for respond source
+        if metadata and metadata.get("source") == "respond":
+            chat_response = generate_chat_response(message)
+            return {
+                "status": "success",
+                "session_id": session_id,
+                "intent": "chat",
+                "response": chat_response,
+                "meta": metadata
+            }
+
         # Stage 1: Input validation & normalization
         normalized_message = _validate_and_normalize_input(message)
 
@@ -69,6 +80,20 @@ def process_message(
             "status": "error",
             "message": f"Pipeline processing failed: {str(e)}"
         }
+
+
+def generate_chat_response(message: str) -> str:
+    """
+    Generate a simple chat response for the respond endpoint.
+
+    Args:
+        message: The user's message.
+
+    Returns:
+        A string response.
+    """
+    # Simple echo response for now, can be replaced with LLM later
+    return f"I received your message: '{message}'. How can I help you today?"
 
 
 def _validate_and_normalize_input(message: str) -> str:

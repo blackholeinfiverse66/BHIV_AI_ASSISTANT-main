@@ -12,6 +12,7 @@ import { EmbeddingsPage } from './pages/EmbeddingsPage'
 import { VoicePage } from './pages/VoicePage'
 import { DecisionHubPage } from './pages/DecisionHubPage'
 import { ExternalPage } from './pages/ExternalPage'
+import { OrchestratorPage } from './pages/OrchestratorPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="voice" element={<VoicePage />} />
           <Route path="decision" element={<DecisionHubPage />} />
           <Route path="external" element={<ExternalPage />} />
+          <Route path="orchestrator" element={<OrchestratorPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
