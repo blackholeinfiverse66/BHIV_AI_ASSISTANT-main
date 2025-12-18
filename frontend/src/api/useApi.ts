@@ -7,10 +7,8 @@ export function useApi() {
   const { state } = useAuth()
 
   return useMemo(() => {
-    const baseUrl = (state?.apiBaseUrl || 'http://localhost:8000').replace(/\/$/, '')
-    const client = new ApiClient(baseUrl, () => {
+    const client = new ApiClient(() => {
       if (!state) return null
-      if (state.mode === 'apiKey' && state.apiKey) return { kind: 'apiKey', apiKey: state.apiKey }
       if (state.mode === 'bearer' && state.bearerToken) return { kind: 'bearer', token: state.bearerToken }
       return null
     })

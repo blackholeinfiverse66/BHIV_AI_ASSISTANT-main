@@ -61,13 +61,15 @@ function deriveMessage(payload: unknown): string {
 
 export class ApiClient {
   private readonly baseUrl: string
+  private readonly apiKey: string
   private readonly getAuth: () => AuthHeaders | null
 
-  constructor(
-    baseUrl: string,
-    getAuth: () => AuthHeaders | null,
-  ) {
-    this.baseUrl = baseUrl
+  constructor(getAuth: () => AuthHeaders | null) {
+    this.baseUrl = import.meta.env.VITE_API_BASE_URL
+    this.apiKey = import.meta.env.VITE_API_KEY
+    if (!this.baseUrl || !this.apiKey) {
+      throw new Error('VITE_API_BASE_URL and VITE_API_KEY must be set')
+    }
     this.getAuth = getAuth
   }
 
@@ -92,7 +94,7 @@ export class ApiClient {
       }
     }
 
-    if (auth?.kind === 'apiKey') headers['X-API-Key'] = auth.apiKey
+    headers['X-API-Key'] = this.apiKey
     if (auth?.kind === 'bearer') headers['Authorization'] = `Bearer ${auth.token}`
 
     let body: BodyInit | undefined

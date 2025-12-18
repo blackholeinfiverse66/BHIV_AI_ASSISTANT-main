@@ -7,7 +7,7 @@ export function RequireAuth({ children }: PropsWithChildren) {
   const loc = useLocation()
 
   const hasAuth =
-    (state?.mode === 'apiKey' && Boolean(state.apiKey)) ||
+    state?.mode === 'env' ||
     (state?.mode === 'bearer' && Boolean(state.bearerToken))
 
   if (!hasAuth) {

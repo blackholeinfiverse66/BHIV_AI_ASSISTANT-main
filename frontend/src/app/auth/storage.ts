@@ -1,9 +1,7 @@
 const STORAGE_KEY = 'bhiv.auth.v1'
 
 export type StoredAuth = {
-  apiBaseUrl: string
-  mode: 'apiKey' | 'bearer'
-  apiKey?: string
+  mode: 'env' | 'bearer'
   bearerToken?: string
   username?: string
 }
@@ -13,7 +11,7 @@ export function readStoredAuth(): StoredAuth | null {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as StoredAuth
-    if (!parsed.apiBaseUrl || !parsed.mode) return null
+    if (!parsed.mode) return null
     return parsed
   } catch {
     return null

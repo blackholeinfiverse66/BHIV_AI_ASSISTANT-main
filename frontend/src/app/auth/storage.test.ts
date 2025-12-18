@@ -3,11 +3,9 @@ import { readStoredAuth, writeStoredAuth } from './storage'
 
 describe('auth storage', () => {
   it('round-trips stored auth', () => {
-    writeStoredAuth({ apiBaseUrl: 'http://localhost:8000', mode: 'apiKey', apiKey: 'x' })
+    writeStoredAuth({ mode: 'env' })
     const v = readStoredAuth()
-    expect(v?.apiBaseUrl).toBe('http://localhost:8000')
-    expect(v?.mode).toBe('apiKey')
-    expect(v?.apiKey).toBe('x')
+    expect(v?.mode).toBe('env')
   })
 })
 
