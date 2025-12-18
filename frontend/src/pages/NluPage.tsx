@@ -7,11 +7,9 @@ import { Input } from '../components/Input'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { useApi } from '../api/useApi'
-import { getErrorMessage } from '../api/errors'
+import { apiPost } from '../lib/api.js'
 
 export function NluPage() {
-  const api = useApi()
   const [text, setText] = useState('Remind me to call John tomorrow at 3pm')
   const [intent, setIntent] = useState('task')
   const [entitiesJson, setEntitiesJson] = useState('{"text":"Call John"}')
@@ -33,12 +31,12 @@ export function NluPage() {
     }
   }, [contextJson])
 
-  const summarize = useMutation({ mutationFn: () => api.summarize({ text }) })
-  const detectIntent = useMutation({ mutationFn: () => api.intent({ text }) })
-  const classifyTask = useMutation({
+  const summarize = useMutation<any>({ mutationFn: () => apiPost('/summarize', { text }) })
+  const detectIntent = useMutation<any>({ mutationFn: () => apiPost('/intent', { text }) })
+  const classifyTask = useMutation<any>({
     mutationFn: () => {
       if (!parsedEntities || !parsedContext) throw new Error('Entities/Context must be valid JSON')
-      return api.classifyTask({ intent, entities: parsedEntities, context: parsedContext, text })
+      return apiPost('/task', { intent, entities: parsedEntities, context: parsedContext, text })
     },
   })
 
@@ -73,7 +71,7 @@ export function NluPage() {
           </Field>
           {classifyTask.isError ? (
             <Alert variant="danger" title="Classification failed">
-              {getErrorMessage(classifyTask.error)}
+              {classifyTask.error.message}
             </Alert>
           ) : null}
           <Button onClick={() => classifyTask.mutate()} loading={classifyTask.isPending}>
@@ -84,9 +82,9 @@ export function NluPage() {
 
       <Card title="Outputs">
         <div className="stack">
-          {summarize.isError ? <Alert variant="danger">{getErrorMessage(summarize.error)}</Alert> : null}
+          {summarize.isError ? <Alert variant="danger">{summarize.error.message}</Alert> : null}
           {summarize.data ? <JsonPanel value={summarize.data} /> : null}
-          {detectIntent.isError ? <Alert variant="danger">{getErrorMessage(detectIntent.error)}</Alert> : null}
+          {detectIntent.isError ? <Alert variant="danger">{detectIntent.error.message}</Alert> : null}
           {detectIntent.data ? <JsonPanel value={detectIntent.data} /> : null}
           {classifyTask.data ? <JsonPanel value={classifyTask.data} /> : null}
           {!summarize.data && !detectIntent.data && !classifyTask.data ? <p className="muted">Run a flow to see output.</p> : null}

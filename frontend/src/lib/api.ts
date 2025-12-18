@@ -5,7 +5,7 @@ if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL is not defined");
 }
 
-export async function apiPost(path, payload) {
+export async function apiPost(path: string, payload: any): Promise<any> {
   const isFormData = payload instanceof FormData;
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",

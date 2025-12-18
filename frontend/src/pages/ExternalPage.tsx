@@ -7,11 +7,9 @@ import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { useApi } from '../api/useApi'
-import { getErrorMessage } from '../api/errors'
+import { apiPost } from '../lib/api.js'
 
 export function ExternalPage() {
-  const api = useApi()
   const [model, setModel] = useState('uniguru')
   const [prompt, setPrompt] = useState('Write a one sentence summary of BHIV.')
 
@@ -27,11 +25,11 @@ export function ExternalPage() {
     }
   }, [paramsJson])
 
-  const llm = useMutation({ mutationFn: () => api.externalLlm({ model, prompt }) })
-  const appMutation = useMutation({
+  const llm = useMutation<any>({ mutationFn: () => apiPost('/external_llm', { model, prompt }) })
+  const appMutation = useMutation<any>({
     mutationFn: () => {
       if (!parsedParams) throw new Error('params must be valid JSON')
-      return api.externalApp({ app, action, params: parsedParams })
+      return apiPost('/external_app', { app, action, params: parsedParams })
     },
   })
 
@@ -56,7 +54,7 @@ export function ExternalPage() {
           <Button variant="secondary" onClick={() => llm.mutate()} loading={llm.isPending}>
             Call LLM
           </Button>
-          {llm.isError ? <Alert variant="danger">{getErrorMessage(llm.error)}</Alert> : null}
+          {llm.isError ? <Alert variant="danger">{llm.error.message}</Alert> : null}
           {llm.data ? <JsonPanel value={llm.data} /> : <p className="muted">No response yet.</p>}
         </div>
       </Card>
@@ -77,7 +75,7 @@ export function ExternalPage() {
           <Button onClick={() => appMutation.mutate()} loading={appMutation.isPending}>
             Run integration
           </Button>
-          {appMutation.isError ? <Alert variant="danger">{getErrorMessage(appMutation.error)}</Alert> : null}
+          {appMutation.isError ? <Alert variant="danger">{appMutation.error.message}</Alert> : null}
           {appMutation.data ? <JsonPanel value={appMutation.data} /> : <p className="muted">No result yet.</p>}
         </div>
       </Card>

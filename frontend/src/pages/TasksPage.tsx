@@ -9,6 +9,7 @@ import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import { useApi } from '../api/useApi'
 import { getErrorMessage } from '../api/errors'
+import { apiPost } from '../lib/api.js'
 
 export function TasksPage() {
   const api = useApi()
@@ -17,26 +18,26 @@ export function TasksPage() {
 
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: api.listTasks })
 
-  const createMutation = useMutation({
-    mutationFn: () => api.createTask({ description }),
-    onMutate: async () => {
-      const prev = qc.getQueryData<any[]>(['tasks'])
-      const optimistic = {
-        id: -Date.now(),
-        description,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-      qc.setQueryData(['tasks'], (old: any[] | undefined) => [optimistic, ...(old || [])])
-      setDescription('')
-      return { prev }
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev)
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
-  })
+   const createMutation = useMutation<any>({
+   mutationFn: () => api.createTask({ description }),
+   onMutate: async () => {
+     const prev = qc.getQueryData<any[]>(['tasks'])
+     const optimistic = {
+       id: -Date.now(),
+       description,
+       status: 'pending',
+       created_at: new Date().toISOString(),
+       updated_at: new Date().toISOString(),
+     }
+     qc.setQueryData(['tasks'], (old: any[] | undefined) => [optimistic, ...(old || [])])
+     setDescription('')
+     return { prev }
+   },
+   onError: (_err, _vars, ctx) => {
+     if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev)
+   },
+   onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+ })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.deleteTask(id),
@@ -65,7 +66,7 @@ export function TasksPage() {
           </Field>
           {createMutation.isError ? (
             <Alert variant="danger" title="Create failed">
-              {getErrorMessage(createMutation.error)}
+              {createMutation.error.message}
             </Alert>
           ) : null}
           <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!description.trim()}>

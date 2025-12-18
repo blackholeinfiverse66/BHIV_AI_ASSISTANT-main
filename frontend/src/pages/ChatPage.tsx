@@ -6,13 +6,13 @@ import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { apiPost } from '../lib/api'
+import { apiPost } from '../lib/api.js'
 
 export function ChatPage() {
   const [message, setMessage] = useState('')
   const [sessionId, setSessionId] = useState('default_session')
 
-  const mutation = useMutation({
+  const mutation = useMutation<any>({
     mutationFn: async () => {
       return apiPost('/respond', { message, session_id: sessionId })
     },

@@ -7,11 +7,9 @@ import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { useApi } from '../api/useApi'
-import { getErrorMessage } from '../api/errors'
+import { apiPost } from '../lib/api.js'
 
 export function DecisionHubPage() {
-  const api = useApi()
   const [inputText, setInputText] = useState('Schedule a meeting tomorrow with Alex')
   const [platform, setPlatform] = useState('web')
   const [deviceContext, setDeviceContext] = useState('desktop')
@@ -38,22 +36,23 @@ export function DecisionHubPage() {
     }
   }, [actionsJson])
 
-  const decision = useMutation({
-    mutationFn: () =>
-      api.decisionHub({
-        input_text: inputText,
-        platform,
-        device_context: deviceContext,
-        voice_input: voiceInput,
-        audio_file: audioFile,
-      }),
+  const decision = useMutation<any>({
+    mutationFn: () => {
+      const fd = new FormData()
+      fd.append('input_text', inputText)
+      fd.append('platform', platform)
+      fd.append('device_context', deviceContext)
+      fd.append('voice_input', String(Boolean(voiceInput)))
+      if (audioFile) fd.append('audio_file', audioFile)
+      return apiPost('/decision_hub', fd)
+    },
   })
 
-  const rl = useMutation({
+  const rl = useMutation<any>({
     mutationFn: () => {
       if (!parsedState) throw new Error('state must be valid JSON object')
       if (!parsedActions) throw new Error('actions must be valid JSON array')
-      return api.rlAction({ state: parsedState, actions: parsedActions })
+      return apiPost('/rl_action', { state: parsedState, actions: parsedActions })
     },
   })
 
@@ -82,7 +81,7 @@ export function DecisionHubPage() {
           <Button onClick={() => decision.mutate()} loading={decision.isPending}>
             Make decision
           </Button>
-          {decision.isError ? <Alert variant="danger">{getErrorMessage(decision.error)}</Alert> : null}
+          {decision.isError ? <Alert variant="danger">{decision.error.message}</Alert> : null}
         </div>
       </Card>
       <Card title="Output">
@@ -100,7 +99,7 @@ export function DecisionHubPage() {
           <Button variant="secondary" onClick={() => rl.mutate()} loading={rl.isPending}>
             Select action
           </Button>
-          {rl.isError ? <Alert variant="danger">{getErrorMessage(rl.error)}</Alert> : null}
+          {rl.isError ? <Alert variant="danger">{rl.error.message}</Alert> : null}
           {rl.data ? <JsonPanel value={rl.data} /> : <p className="muted">No RL output yet.</p>}
         </div>
       </Card>
