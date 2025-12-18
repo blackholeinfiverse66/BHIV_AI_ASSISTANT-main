@@ -8,7 +8,8 @@ import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import { useApi } from '../api/useApi'
-import { getErrorMessage } from '../api/errors'
+import { getErrorMessage, ApiError } from '../api/errors'
+import type { Task } from '../api/types'
 
 export function TasksPage() {
   const api = useApi()
@@ -17,7 +18,7 @@ export function TasksPage() {
 
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: api.listTasks })
 
-   const createMutation = useMutation<any>({
+   const createMutation = useMutation<Task, ApiError, void, { prev?: Task[] }>({
    mutationFn: () => api.createTask({ description }),
    onMutate: async () => {
      const prev = qc.getQueryData<any[]>(['tasks'])
@@ -38,7 +39,7 @@ export function TasksPage() {
    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
  })
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useMutation<{ message: string }, ApiError, number, { prev?: Task[] }>({
     mutationFn: (id: number) => api.deleteTask(id),
     onMutate: async (id) => {
       const prev = qc.getQueryData<any[]>(['tasks'])
