@@ -9,7 +9,6 @@ import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import { useApi } from '../api/useApi'
 import { getErrorMessage } from '../api/errors'
-import { apiPost } from '../lib/api.js'
 
 export function TasksPage() {
   const api = useApi()
