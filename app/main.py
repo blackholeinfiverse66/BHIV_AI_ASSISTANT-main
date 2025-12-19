@@ -5,7 +5,6 @@ import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_DIR)
 
-import os
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,13 +17,14 @@ from fastapi.openapi.utils import get_openapi
 # ------------------------------
 # Load environment variables
 # ------------------------------
-load_dotenv(dotenv_path=os.path.join(ROOT_DIR, '.env'))
+load_dotenv(dotenv_path=os.path.join(ROOT_DIR, ".env"))
 
 print("Loaded API KEY:", os.getenv("API_KEY"))
 
 # Initialize Sentry if enabled
 if os.getenv("SENTRY_DSN"):
     import sentry_sdk
+
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
         traces_sample_rate=1.0,
@@ -69,7 +69,7 @@ app = FastAPI(
     description="Multi-Platform Brain & Integration Layer",
     version="3.0.0",
     lifespan=lifespan,
-    swagger_ui_parameters={"persistAuthorization": True}
+    swagger_ui_parameters={"persistAuthorization": True},
 )
 
 # ------------------------------
@@ -86,16 +86,14 @@ def custom_openapi():
         routes=app.routes,
     )
 
-    # Add security scheme
     openapi_schema["components"]["securitySchemes"] = {
         "APIKeyHeader": {
             "type": "apiKey",
             "in": "header",
-            "name": "X-API-Key"
+            "name": "X-API-Key",
         }
     }
 
-    # Apply global requirement for all /api routes
     for path in openapi_schema["paths"]:
         if path.startswith("/api"):
             for method in openapi_schema["paths"][path]:
@@ -109,21 +107,20 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-
 # ------------------------------
-# CORS
+# CORS (UPDATED & FIXED)
 # ------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ],
+        "https://bhiv-ai-assistant-main-7a5avgyya-blackholeinfiverse66s-projects.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ------------------------------
 # Security Middleware
@@ -131,9 +128,11 @@ app.add_middleware(
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
 
+    # Allow non-API routes
     if not request.url.path.startswith("/api"):
         return await call_next(request)
 
+    # Allow CORS preflight
     if request.method == "OPTIONS":
         return await call_next(request)
 
@@ -148,19 +147,21 @@ async def security_middleware(request: Request, call_next):
 
     elif auth_header and auth_header.startswith("Bearer "):
         from .core.security import verify_token_string
+
         try:
             token = auth_header.split(" ")[1]
             token_data = verify_token_string(token)
             user = token_data.username
-        except:
+        except Exception:
             pass
 
     if not user:
-        return JSONResponse(status_code=401, content={"detail": "Authentication failed"})
+        return JSONResponse(
+            status_code=401, content={"detail": "Authentication failed"}
+        )
 
     audit_log(request, user)
     return await call_next(request)
-
 
 # ------------------------------
 # ROUTERS
@@ -177,7 +178,6 @@ app.include_router(voice_tts.router, prefix="/api", tags=["Voice TTS"])
 app.include_router(external_llm.router, prefix="/api", tags=["External LLM"])
 app.include_router(bhiv.router, prefix="/api", tags=["BHIV"])
 
-
 # ------------------------------
 # SYSTEM ENDPOINTS
 # ------------------------------
@@ -186,7 +186,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "version": "3.0.0"
+        "version": "3.0.0",
     }
 
 
@@ -194,19 +194,20 @@ async def health_check():
 async def metrics():
     import psutil
     import time
+
     return {
         "uptime": time.time() - psutil.boot_time(),
         "cpu_percent": psutil.cpu_percent(interval=1),
         "memory": {
             "total": psutil.virtual_memory().total,
             "available": psutil.virtual_memory().available,
-            "percent": psutil.virtual_memory().percent
+            "percent": psutil.virtual_memory().percent,
         },
         "disk": {
-            "total": psutil.disk_usage('/').total,
-            "free": psutil.disk_usage('/').free,
-            "percent": psutil.disk_usage('/').percent
-        }
+            "total": psutil.disk_usage("/").total,
+            "free": psutil.disk_usage("/").free,
+            "percent": psutil.disk_usage("/").percent,
+        },
     }
 
 
