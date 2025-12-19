@@ -65,11 +65,15 @@ export class ApiClient {
   private readonly getAuth: () => AuthHeaders | null
 
   constructor(getAuth: () => AuthHeaders | null) {
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL
+    // ✅ FIX: normalize base URL (remove trailing slash)
+    const rawBaseUrl = import.meta.env.VITE_API_BASE_URL
+    this.baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/$/, '') : ''
     this.apiKey = import.meta.env.VITE_API_KEY
+
     if (!this.baseUrl || !this.apiKey) {
       throw new Error('VITE_API_BASE_URL and VITE_API_KEY must be set')
     }
+
     this.getAuth = getAuth
   }
 
@@ -78,24 +82,27 @@ export class ApiClient {
 
     // In development, use relative URLs for /api/* paths to leverage Vite proxy
     const isDevelopment = import.meta.env.DEV
-    const isApiPath = opts.path.startsWith('/api') || opts.path.startsWith('/health') || opts.path.startsWith('/metrics')
-    const baseUrl = (isDevelopment && isApiPath) ? '' : this.baseUrl
+    const isApiPath =
+      opts.path.startsWith('/api') ||
+      opts.path.startsWith('/health') ||
+      opts.path.startsWith('/metrics')
 
+    const baseUrl = isDevelopment && isApiPath ? '' : this.baseUrl
     const url = buildUrl(baseUrl, opts.path, opts.query)
-    const auth = this.getAuth()
 
+    const auth = this.getAuth()
     const headers: Record<string, string> = {}
 
     if (opts.headers) {
       for (const [key, value] of Object.entries(opts.headers)) {
-        if (value !== undefined) {
-          headers[key] = value
-        }
+        if (value !== undefined) headers[key] = value
       }
     }
 
     headers['X-API-Key'] = this.apiKey
-    if (auth?.kind === 'bearer') headers['Authorization'] = `Bearer ${auth.token}`
+    if (auth?.kind === 'bearer') {
+      headers['Authorization'] = `Bearer ${auth.token}`
+    }
 
     let body: BodyInit | undefined
     if (opts.formData) {
@@ -125,21 +132,26 @@ export class ApiClient {
         })
 
         if (res.ok) {
-          const data = (await parseJsonSafe(res)) as T
-          return data
+          return (await parseJsonSafe(res)) as T
         }
 
         const payload = await parseJsonSafe(res)
         const msg = deriveMessage(payload)
-        const err = new ApiError(msg, { status: res.status, requestId: res.headers.get('x-request-id') || undefined, payload })
+        const err = new ApiError(msg, {
+          status: res.status,
+          requestId: res.headers.get('x-request-id') || undefined,
+          payload,
+        })
 
-        const shouldRetry = res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504
+        const shouldRetry = [429, 502, 503, 504].includes(res.status)
         if (!shouldRetry || attempt >= retry.retries) throw err
 
         const retryAfter = res.headers.get('retry-after')
-        const delay = retryAfter ? Number(retryAfter) * 1000 : retry.baseDelayMs * Math.pow(2, attempt)
+        const delay = retryAfter
+          ? Number(retryAfter) * 1000
+          : retry.baseDelayMs * Math.pow(2, attempt)
+
         await sleep(delay)
-        continue
       } catch (e) {
         const error = e as Error
         const isAbort = error?.name === 'AbortError'
@@ -160,4 +172,3 @@ export class ApiClient {
     throw new ApiError('Request failed after retries', { status: 0 })
   }
 }
-
