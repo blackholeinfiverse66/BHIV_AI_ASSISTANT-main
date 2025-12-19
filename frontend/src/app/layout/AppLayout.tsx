@@ -16,6 +16,7 @@ const navItems = [
 
 export function AppLayout() {
   const { state, logout } = useAuth()
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
   return (
     <div className="shell">
@@ -26,7 +27,7 @@ export function AppLayout() {
         </div>
         <div className="topbar__meta">
           <span className="pill">{state?.mode === 'bearer' ? `User: ${state.username || 'token'}` : 'API Key'}</span>
-          <span className="pill pill--muted">{state?.apiBaseUrl}</span>
+          <span className="pill pill--muted">{apiBaseUrl}</span>
           <Button variant="ghost" size="sm" onClick={logout}>
             Log out
           </Button>
