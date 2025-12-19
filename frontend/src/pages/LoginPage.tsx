@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Field } from '../components/Field'
