@@ -4,6 +4,8 @@ import { AuthContext } from './AuthContext'
 import type { AuthContextValue, AuthState } from './authTypes'
 import { readStoredAuth, writeStoredAuth } from './storage'
 
+// build-fix-1
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState | null>(() => {
     const stored = readStoredAuth()
