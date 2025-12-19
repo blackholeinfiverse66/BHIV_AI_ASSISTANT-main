@@ -1,8 +1,12 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_KEY = import.meta.env.VITE_API_KEY;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
+const API_KEY = import.meta.env.VITE_API_KEY
 
 if (!BASE_URL) {
-  throw new Error("VITE_API_BASE_URL is not defined");
+  throw new Error('VITE_API_BASE_URL is missing')
+}
+
+if (!API_KEY) {
+  throw new Error('VITE_API_KEY is missing')
 }
 
 export async function apiPost(path, payload) {
