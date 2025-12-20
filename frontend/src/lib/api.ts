@@ -1,13 +1,30 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-if (!BASE_URL) {
+if (!RAW_BASE_URL) {
   throw new Error("VITE_API_BASE_URL is not defined");
 }
 
+if (!API_KEY) {
+  throw new Error("VITE_API_KEY is not defined");
+}
+
+// ✅ normalize base URL ONCE
+const BASE_URL = RAW_BASE_URL.replace(/\/+$/, "");
+
 export async function apiPost(path: string, payload: any): Promise<any> {
+  // ✅ enforce /api prefix and leading slash
+  const normalizedPath = path.startsWith("/api/")
+    ? path
+    : `/api${path.startsWith("/") ? "" : "/"}${path}`;
+
+  const url = `${BASE_URL}${normalizedPath}`;
+
+  console.log("FINAL API URL:", url); // TEMPORARY
+
   const isFormData = payload instanceof FormData;
-  const res = await fetch(`${BASE_URL}${path}`, {
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "X-API-Key": API_KEY,
