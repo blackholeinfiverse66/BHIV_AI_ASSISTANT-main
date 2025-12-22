@@ -39,7 +39,7 @@
 
 ## Example Call (JavaScript)
 ```javascript
-const response = await fetch('https://api.assistantcore.com/api/respond', {
+const response = await fetch('https://api.assistantcore.com/api/summarize', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${token}`,

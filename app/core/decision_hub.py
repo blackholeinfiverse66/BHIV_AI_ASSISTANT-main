@@ -73,7 +73,7 @@ class DecisionHub:
                     response = await client.post("http://localhost:8000/api/summarize", json=payload, headers=headers)
                 else:
                     payload = {"query": query, "context": context or {}, "model": model}
-                    response = await client.post("http://localhost:8000/api/respond", json=payload, headers=headers)
+                    response = await client.post("http://localhost:8000/api/summarize", json=payload, headers=headers)
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError as e:

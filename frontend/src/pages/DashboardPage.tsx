@@ -5,7 +5,7 @@ export function DashboardPage() {
     <div className="grid">
       <Card title="Quick links">
         <ul className="list">
-          <li>Use Chat for /api/respond and /api/bhiv/run.</li>
+          <li>Use Chat for /api/summarize and /api/bhiv/run.</li>
           <li>Use Tasks to create and manage DB-backed tasks.</li>
           <li>Use NLU for summarize/intent/task classification.</li>
           <li>Use Voice for STT upload and TTS playback.</li>

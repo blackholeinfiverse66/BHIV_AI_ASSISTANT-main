@@ -189,7 +189,7 @@ npm run dev
 
 ### BHIV System
 - `POST /api/bhiv/run` — Execute complex tasks with BHIV  
-- `POST /api/respond` — General LLM-based response  
+- `POST /api/summarize` — General LLM-based response  
 
 ### NLU (Seeya)
 - `POST /api/summarize`  
@@ -307,7 +307,7 @@ npm run dev
 
 ### 1. Simple Response
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/respond" \
+curl -X POST "http://127.0.0.1:8000/api/summarize" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: bhiv_demo_key_12345" \
   -d '{"message": "What is the weather today?", "session_id": "test"}'

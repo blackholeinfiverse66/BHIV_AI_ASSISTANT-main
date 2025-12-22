@@ -53,7 +53,7 @@ export function createBhivApi(client: ApiClient) {
     similarity: (req: SimilarityRequest) =>
       client.request<SimilarityResponse>({ method: 'POST', path: '/api/embed/similarity', json: req }),
 
-    respond: (req: RespondRequest) => client.request<RespondResponse>({ method: 'POST', path: '/api/respond', json: req }),
+    respond: (req: RespondRequest) => client.request<RespondResponse>({ method: 'POST', path: '/api/summarize', json: req }),
     bhivRun: (req: BHIVRequest) => client.request<BHIVResponse>({ method: 'POST', path: '/api/bhiv/run', json: req }),
 
     rlAction: (req: RLActionRequest) => client.request<RLActionResponse>({ method: 'POST', path: '/api/rl_action', json: req }),

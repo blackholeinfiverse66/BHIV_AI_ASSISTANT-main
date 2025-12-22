@@ -14,7 +14,7 @@ export function ChatPage() {
 
   const mutation = useMutation<any>({
     mutationFn: async () => {
-      return apiPost('/api/respond', { message, session_id: sessionId })
+      return apiPost('/api/summarize', { message, session_id: sessionId })
     },
   })
 

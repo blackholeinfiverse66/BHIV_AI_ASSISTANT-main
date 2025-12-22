@@ -7,5 +7,5 @@ if (!RAW) {
 const BASE = RAW.replace(/\/+$/, '');
 
 export const bhivApi = {
-  respond: `${BASE}/api/respond`,
+  respond: `${BASE}/api/summarize`,
 };

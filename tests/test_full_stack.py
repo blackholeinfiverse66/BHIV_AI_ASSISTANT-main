@@ -63,7 +63,7 @@ def test_embed():
     assert "embeddings" in response.json()
 
 def test_respond():
-    response = client.post("/api/respond", json={"query": "Hello", "context": {}})
+    response = client.post("/api/summarize", json={"query": "Hello", "context": {}})
     assert response.status_code == 200
     assert "response" in response.json()
 
