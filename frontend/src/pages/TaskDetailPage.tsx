@@ -16,17 +16,21 @@ export function TaskDetailPage() {
   const params = useParams()
   const taskId = Number(params.taskId)
 
-  const taskQuery = useQuery({ queryKey: ['task', taskId], queryFn: () => api.getTask(taskId), enabled: Number.isFinite(taskId) })
+  const taskQuery = useQuery({
+    queryKey: ['task', taskId],
+    queryFn: () => api.getTask(taskId),
+    enabled: Number.isFinite(taskId),
+  })
 
   const current = taskQuery.data
 
   const [description, setDescription] = useState('')
-  const [status, setStatus] = useState('pending')
+  const [status, setStatus] = useState<'pending' | 'in_progress' | 'done'>('pending')
 
   useEffect(() => {
     if (!current) return
     setDescription(current.description)
-    setStatus(current.status)
+    setStatus(current.status as 'pending' | 'in_progress' | 'done')
   }, [current])
 
   const saveMutation = useMutation({
@@ -41,26 +45,32 @@ export function TaskDetailPage() {
     <div className="grid">
       <Card title="Task detail" actions={<Link className="pill" to="/tasks">Back</Link>}>
         {!Number.isFinite(taskId) ? <Alert variant="danger">Invalid task id.</Alert> : null}
+
         {taskQuery.isLoading ? <Spinner /> : null}
+
         {taskQuery.isError ? (
           <Alert variant="danger" title="Load failed">
             {getErrorMessage(taskQuery.error)}
           </Alert>
         ) : null}
+
         {current ? (
           <div className="stack">
-            <div className="row row--wrap">
-              <span className="pill">ID: {current.id}</span>
-              <span className="pill pill--muted">Created: {new Date(current.created_at).toLocaleString()}</span>
-              <span className="pill pill--muted">Updated: {new Date(current.updated_at).toLocaleString()}</span>
-            </div>
-
             <Field label="Description">
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </Field>
 
             <Field label="Status">
-              <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select
+                className="select"
+                value={status}
+                onChange={(e) =>
+                  setStatus(e.target.value as 'pending' | 'in_progress' | 'done')
+                }
+              >
                 <option value="pending">pending</option>
                 <option value="in_progress">in_progress</option>
                 <option value="done">done</option>
@@ -68,20 +78,21 @@ export function TaskDetailPage() {
             </Field>
 
             {saveMutation.isError ? (
-              <Alert variant="danger" title="Save failed">
+              <Alert variant="danger">
                 {getErrorMessage(saveMutation.error)}
               </Alert>
             ) : null}
 
-            <div className="row">
-              <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} disabled={!description.trim()}>
-                Save
-              </Button>
-            </div>
+            <Button
+              onClick={() => saveMutation.mutate()}
+              loading={saveMutation.isPending}
+              disabled={!description.trim()}
+            >
+              Save
+            </Button>
           </div>
         ) : null}
       </Card>
     </div>
   )
 }
-

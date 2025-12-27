@@ -7,9 +7,11 @@ import { Input } from '../components/Input'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { apiPost } from '../lib/api.js'
+import { useApi } from '../api/useApi'
 
 export function NluPage() {
+  const api = useApi()
+
   const [text, setText] = useState('Remind me to call John tomorrow at 3pm')
   const [intent, setIntent] = useState('task')
   const [entitiesJson, setEntitiesJson] = useState('{"text":"Call John"}')
@@ -31,12 +33,26 @@ export function NluPage() {
     }
   }, [contextJson])
 
-  const summarize = useMutation<any>({ mutationFn: () => apiPost('/summarize', { text }) })
-  const detectIntent = useMutation<any>({ mutationFn: () => apiPost('/intent', { text }) })
+  const summarize = useMutation<any>({
+    mutationFn: () => api.summarize({ text }),
+  })
+
+  const detectIntent = useMutation<any>({
+    mutationFn: () => api.intent({ text }),
+  })
+
   const classifyTask = useMutation<any>({
     mutationFn: () => {
-      if (!parsedEntities || !parsedContext) throw new Error('Entities/Context must be valid JSON')
-      return apiPost('/task', { intent, entities: parsedEntities, context: parsedContext, text })
+      if (!parsedEntities || !parsedContext) {
+        throw new Error('Entities/Context must be valid JSON')
+      }
+
+      return api.classifyTask({
+        intent,
+        entities: parsedEntities,
+        context: parsedContext,
+        text,
+      })
     },
   })
 
@@ -45,13 +61,27 @@ export function NluPage() {
       <Card title="Input">
         <div className="stack">
           <Field label="Text">
-            <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
+            <Textarea
+              rows={4}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
           </Field>
+
           <div className="row row--wrap">
-            <Button variant="secondary" onClick={() => summarize.mutate()} loading={summarize.isPending}>
+            <Button
+              variant="secondary"
+              onClick={() => summarize.mutate()}
+              loading={summarize.isPending}
+            >
               Summarize
             </Button>
-            <Button variant="secondary" onClick={() => detectIntent.mutate()} loading={detectIntent.isPending}>
+
+            <Button
+              variant="secondary"
+              onClick={() => detectIntent.mutate()}
+              loading={detectIntent.isPending}
+            >
               Intent
             </Button>
           </div>
@@ -61,20 +91,54 @@ export function NluPage() {
       <Card title="Task classification (/api/task)">
         <div className="stack">
           <Field label="Intent">
-            <Input value={intent} onChange={(e) => setIntent(e.target.value)} />
+            <Input
+              value={intent}
+              onChange={(e) => setIntent(e.target.value)}
+            />
           </Field>
-          <Field label="Entities (JSON)" hint={parsedEntities === null ? <span className="danger">Invalid JSON</span> : null}>
-            <Textarea rows={4} value={entitiesJson} onChange={(e) => setEntitiesJson(e.target.value)} />
+
+          <Field
+            label="Entities (JSON)"
+            hint={
+              parsedEntities === null ? (
+                <span className="danger">Invalid JSON</span>
+              ) : null
+            }
+          >
+            <Textarea
+              rows={4}
+              value={entitiesJson}
+              onChange={(e) => setEntitiesJson(e.target.value)}
+            />
           </Field>
-          <Field label="Context (JSON)" hint={parsedContext === null ? <span className="danger">Invalid JSON</span> : null}>
-            <Textarea rows={3} value={contextJson} onChange={(e) => setContextJson(e.target.value)} />
+
+          <Field
+            label="Context (JSON)"
+            hint={
+              parsedContext === null ? (
+                <span className="danger">Invalid JSON</span>
+              ) : null
+            }
+          >
+            <Textarea
+              rows={3}
+              value={contextJson}
+              onChange={(e) => setContextJson(e.target.value)}
+            />
           </Field>
+
           {classifyTask.isError ? (
             <Alert variant="danger" title="Classification failed">
-              {classifyTask.error.message}
+              {classifyTask.error instanceof Error
+                ? classifyTask.error.message
+                : 'Request failed'}
             </Alert>
           ) : null}
-          <Button onClick={() => classifyTask.mutate()} loading={classifyTask.isPending}>
+
+          <Button
+            onClick={() => classifyTask.mutate()}
+            loading={classifyTask.isPending}
+          >
             Build task
           </Button>
         </div>
@@ -82,15 +146,33 @@ export function NluPage() {
 
       <Card title="Outputs">
         <div className="stack">
-          {summarize.isError ? <Alert variant="danger">{summarize.error.message}</Alert> : null}
+          {summarize.isError ? (
+            <Alert variant="danger">
+              {summarize.error instanceof Error
+                ? summarize.error.message
+                : 'Request failed'}
+            </Alert>
+          ) : null}
+
           {summarize.data ? <JsonPanel value={summarize.data} /> : null}
-          {detectIntent.isError ? <Alert variant="danger">{detectIntent.error.message}</Alert> : null}
+
+          {detectIntent.isError ? (
+            <Alert variant="danger">
+              {detectIntent.error instanceof Error
+                ? detectIntent.error.message
+                : 'Request failed'}
+            </Alert>
+          ) : null}
+
           {detectIntent.data ? <JsonPanel value={detectIntent.data} /> : null}
+
           {classifyTask.data ? <JsonPanel value={classifyTask.data} /> : null}
-          {!summarize.data && !detectIntent.data && !classifyTask.data ? <p className="muted">Run a flow to see output.</p> : null}
+
+          {!summarize.data && !detectIntent.data && !classifyTask.data ? (
+            <p className="muted">Run a flow to see output.</p>
+          ) : null}
         </div>
       </Card>
     </div>
   )
 }
-

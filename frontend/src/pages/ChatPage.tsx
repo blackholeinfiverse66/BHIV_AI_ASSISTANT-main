@@ -6,16 +6,16 @@ import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { JsonPanel } from '../components/JsonPanel'
-import { apiPost } from '../lib/api.js'
+import { useApi } from '../api/useApi'
 
 export function ChatPage() {
+  const api = useApi()
+
   const [message, setMessage] = useState('')
   const [sessionId, setSessionId] = useState('default_session')
 
   const mutation = useMutation<any>({
-    mutationFn: async () => {
-      return apiPost('summarize', { text: message })
-    },
+    mutationFn: () => api.summarize({ text: message }),
   })
 
   return (
@@ -23,15 +23,27 @@ export function ChatPage() {
       <Card title="Chat">
         <div className="stack">
           <Field label="Message">
-            <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type your message…" />
+            <Textarea
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message…"
+            />
           </Field>
+
           <Field label="Session ID">
-            <input type="text" value={sessionId} onChange={(e) => setSessionId(e.target.value)} />
+            <input
+              type="text"
+              value={sessionId}
+              onChange={(e) => setSessionId(e.target.value)}
+            />
           </Field>
 
           {mutation.isError ? (
             <Alert variant="danger" title="Request failed">
-              {mutation.error.message}
+              {mutation.error instanceof Error
+                ? mutation.error.message
+                : 'Request failed'}
             </Alert>
           ) : null}
 
@@ -48,9 +60,12 @@ export function ChatPage() {
 
       <Card title="Response">
         {mutation.isPending ? <p className="muted">Sending…</p> : null}
-        {mutation.data ? <JsonPanel value={mutation.data} /> : <p className="muted">No response yet.</p>}
+        {mutation.data ? (
+          <JsonPanel value={mutation.data} />
+        ) : (
+          <p className="muted">No response yet.</p>
+        )}
       </Card>
     </div>
   )
 }
-

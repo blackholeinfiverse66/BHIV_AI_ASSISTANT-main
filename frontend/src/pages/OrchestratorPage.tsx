@@ -5,45 +5,39 @@ import { Field } from '../components/Field'
 import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
-import { apiPost } from '../lib/api.js'
+import { useApi } from '../api/useApi'
 
 export function OrchestratorPage() {
+  const api = useApi()
+
   const [message, setMessage] = useState('')
   const [platform, setPlatform] = useState('whatsapp')
   const [result, setResult] = useState<any>(null)
 
   const orchestrate = useMutation({
     mutationFn: async () => {
-      // STEP 1 — Summarize
-      const summarizeRes = await apiPost('/api/summarize', {
-        user_id: 'demo',
+      // 1) Summarize
+      const summary = await api.summarize({ text: message })
+
+      // 2) Decision Hub (real orchestration)
+      const decision = await api.decisionHub({
+        input_text: message,
         platform,
-        message_id: `m-${Date.now()}`,
-        message_text: message,
-        timestamp: new Date().toISOString(),
-      })
-
-      // STEP 2 — Decision Hub
-      const decisionRes = await apiPost('/api/decision_hub', summarizeRes)
-
-      // STEP 3 — Orchestrate
-      const orchestrateRes = await apiPost('/orchestrate', {
-        task_id: summarizeRes.task_id,
+        device_context: 'web',
+        voice_input: false,
       })
 
       return {
-        summary: summarizeRes.summary,
-        intent: decisionRes.intent,
-        urgency: decisionRes.urgency,
-        routedTo: orchestrateRes.routed_to,
-        finalStatus: orchestrateRes.status,
-        fallbackUsed: orchestrateRes.fallback_used,
-        traceId: orchestrateRes.trace_id,
+        summary: summary.summary,
+        intent: decision.intent,
+        urgency: decision.urgency,
+        routedTo: decision.routed_to,
+        finalStatus: decision.status,
+        fallbackUsed: decision.fallback_used,
+        traceId: decision.trace_id,
       }
     },
-    onSuccess: (data) => {
-      setResult(data)
-    },
+    onSuccess: (data) => setResult(data),
   })
 
   return (
@@ -58,6 +52,7 @@ export function OrchestratorPage() {
               placeholder="Enter your message..."
             />
           </Field>
+
           <Field label="Platform">
             <select
               className="select"
@@ -69,11 +64,15 @@ export function OrchestratorPage() {
               <option value="instagram">Instagram</option>
             </select>
           </Field>
-          {orchestrate.isError && (
+
+          {orchestrate.isError ? (
             <Alert variant="danger">
-              {orchestrate.error.message || 'Orchestration failed'}
+              {orchestrate.error instanceof Error
+                ? orchestrate.error.message
+                : 'Orchestration failed'}
             </Alert>
-          )}
+          ) : null}
+
           <Button
             onClick={() => orchestrate.mutate()}
             loading={orchestrate.isPending}
@@ -109,12 +108,15 @@ export function OrchestratorPage() {
                 <p>{result.traceId}</p>
               </Field>
             </div>
-            {result.fallbackUsed && (
+
+            {result.fallbackUsed ? (
               <Alert variant="warn">Fallback used</Alert>
-            )}
+            ) : null}
           </div>
         ) : (
-          <p className="muted">Submit a message to see the orchestration result.</p>
+          <p className="muted">
+            Submit a message to see the orchestration result.
+          </p>
         )}
       </Card>
     </div>
