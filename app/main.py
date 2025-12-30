@@ -6,13 +6,14 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_DIR)
 
 from datetime import datetime
-from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 from fastapi.security import APIKeyHeader
 from fastapi.openapi.utils import get_openapi
+from dotenv import load_dotenv
 
 # ------------------------------
 # Load environment variables
@@ -101,7 +102,7 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # ------------------------------
-# CORS (Vercel-safe)
+# CORS (Vercel-safe, FINAL)
 # ------------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -112,23 +113,29 @@ app.add_middleware(
 )
 
 # ------------------------------
-# Security Middleware
+# Security Middleware (FIXED)
 # ------------------------------
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
+    """
+    IMPORTANT:
+    - CORS preflight (OPTIONS) must be terminated BEFORE routing
+    - Otherwise FastAPI validation breaks preflight and causes CORS failures
+    """
+
+    # ✅ HARD STOP for CORS preflight
+    if request.method == "OPTIONS":
+        return Response(status_code=200)
 
     # Allow non-API routes
     if not request.url.path.startswith("/api"):
         return await call_next(request)
 
-    # Allow CORS preflight
-    if request.method == "OPTIONS":
-        return await call_next(request)
-
+    # Rate limiting
     rate_limit(request)
 
+    # API key validation
     api_key = request.headers.get("X-API-Key")
-
     if api_key != os.getenv("API_KEY"):
         return JSONResponse(
             status_code=401,
@@ -139,7 +146,7 @@ async def security_middleware(request: Request, call_next):
     return await call_next(request)
 
 # ------------------------------
-# ROUTERS (PUBLIC APIs)
+# ROUTERS (PUBLIC APIs ONLY)
 # ------------------------------
 app.include_router(summarize.router, prefix="/api", tags=["Summarize"])
 app.include_router(intent.router, prefix="/api", tags=["Intent"])
