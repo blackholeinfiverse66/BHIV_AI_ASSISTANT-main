@@ -12,15 +12,21 @@ export function ChatPage() {
   const api = useApi()
 
   const [message, setMessage] = useState('')
-  const [sessionId, setSessionId] = useState('default_session')
+  const [platform, setPlatform] = useState('web')
 
-  const mutation = useMutation<any>({
-    mutationFn: () => api.summarize({ text: message }),
+  const decision = useMutation({
+    mutationFn: () =>
+      api.decisionHub({
+        input_text: message,
+        platform,
+        device_context: 'desktop',
+        voice_input: false,
+      }),
   })
 
   return (
     <div className="grid">
-      <Card title="Chat">
+      <Card title="Chat (Decision Hub)">
         <div className="stack">
           <Field label="Message">
             <Textarea
@@ -31,37 +37,38 @@ export function ChatPage() {
             />
           </Field>
 
-          <Field label="Session ID">
-            <input
-              type="text"
-              value={sessionId}
-              onChange={(e) => setSessionId(e.target.value)}
-            />
+          <Field label="Platform">
+            <select
+              className="select"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+            >
+              <option value="web">web</option>
+              <option value="whatsapp">whatsapp</option>
+              <option value="email">email</option>
+            </select>
           </Field>
 
-          {mutation.isError ? (
+          {decision.isError && (
             <Alert variant="danger" title="Request failed">
-              {mutation.error instanceof Error
-                ? mutation.error.message
-                : 'Request failed'}
+              {decision.error.message}
             </Alert>
-          ) : null}
+          )}
 
-          <div className="row">
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
-              Send
-            </Button>
-            <Button variant="ghost" type="button" onClick={() => mutation.reset()}>
-              Clear
-            </Button>
-          </div>
+          <Button
+            onClick={() => decision.mutate()}
+            loading={decision.isPending}
+            disabled={!message.trim()}
+          >
+            Send
+          </Button>
         </div>
       </Card>
 
-      <Card title="Response">
-        {mutation.isPending ? <p className="muted">Sending…</p> : null}
-        {mutation.data ? (
-          <JsonPanel value={mutation.data} />
+      <Card title="Decision Output">
+        {decision.isPending && <p className="muted">Processing…</p>}
+        {decision.data ? (
+          <JsonPanel value={decision.data} />
         ) : (
           <p className="muted">No response yet.</p>
         )}

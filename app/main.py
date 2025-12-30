@@ -101,18 +101,14 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # ------------------------------
-# CORS (FINAL)
+# CORS (Vercel-safe)
 # ------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://bhiv-ai-assistant-main-7a5avgyya-blackholeinfiverse66s-projects.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # Required for X-API-Key
 )
 
 # ------------------------------
@@ -135,14 +131,15 @@ async def security_middleware(request: Request, call_next):
 
     if api_key != os.getenv("API_KEY"):
         return JSONResponse(
-            status_code=401, content={"detail": "Authentication failed"}
+            status_code=401,
+            content={"detail": "Authentication failed"},
         )
 
     audit_log(request, "api_key_user")
     return await call_next(request)
 
 # ------------------------------
-# ROUTERS (PUBLIC APIs ONLY)
+# ROUTERS (PUBLIC APIs)
 # ------------------------------
 app.include_router(summarize.router, prefix="/api", tags=["Summarize"])
 app.include_router(intent.router, prefix="/api", tags=["Intent"])
@@ -154,10 +151,6 @@ app.include_router(voice_stt.router, prefix="/api", tags=["Voice STT"])
 app.include_router(voice_tts.router, prefix="/api", tags=["Voice TTS"])
 app.include_router(external_llm.router, prefix="/api", tags=["External LLM"])
 app.include_router(bhiv.router, prefix="/api", tags=["BHIV"])
-
-# ❌ NOTE:
-# respond.router is intentionally NOT included
-# respond remains an INTERNAL pipeline action, not a public API
 
 # ------------------------------
 # SYSTEM ENDPOINTS
@@ -171,27 +164,9 @@ async def health_check():
     }
 
 
-@app.get("/metrics")
-async def metrics():
-    import psutil
-    import time
-
-    return {
-        "uptime": time.time() - psutil.boot_time(),
-        "cpu_percent": psutil.cpu_percent(interval=1),
-        "memory": {
-            "total": psutil.virtual_memory().total,
-            "available": psutil.virtual_memory().available,
-            "percent": psutil.virtual_memory().percent,
-        },
-        "disk": {
-            "total": psutil.disk_usage("/").total,
-            "free": psutil.disk_usage("/").free,
-            "percent": psutil.disk_usage("/").percent,
-        },
-    }
-
-
 @app.get("/")
 async def root():
-    return {"message": "Assistant Core v3 API", "status": "running"}
+    return {
+        "message": "Assistant Core v3 API",
+        "status": "running",
+    }
