@@ -38,18 +38,18 @@ export function DecisionHubPage() {
     }
   }, [actionsJson])
 
-  const decision = useMutation<any>({
+  const decision = useMutation({
     mutationFn: () =>
       api.decisionHub({
         input_text: inputText,
         platform,
         device_context: deviceContext,
         voice_input: voiceInput,
-        audio_file: audioFile,
+        audio_file: voiceInput ? audioFile : null,
       }),
   })
 
-  const rl = useMutation<any>({
+  const rl = useMutation({
     mutationFn: () => {
       if (!parsedState) throw new Error('state must be valid JSON object')
       if (!parsedActions) throw new Error('actions must be valid JSON array')
@@ -98,24 +98,30 @@ export function DecisionHubPage() {
             Make decision
           </Button>
 
-          {decision.isError ? (
+          {decision.isError && (
             <Alert variant="danger">
-              {decision.error instanceof Error
-                ? decision.error.message
-                : 'Decision failed'}
+              {(decision.error as Error).message}
             </Alert>
-          ) : null}
+          )}
         </div>
       </Card>
 
       <Card title="Output">
-        {decision.data ? <JsonPanel value={decision.data} /> : <p className="muted">No output yet.</p>}
+        {decision.data ? (
+          <JsonPanel value={decision.data} />
+        ) : (
+          <p className="muted">No output yet.</p>
+        )}
       </Card>
 
       <Card title="RL Action Selector (/api/rl_action)">
         <div className="stack">
           <Field label="state (JSON)">
-            <Textarea rows={4} value={stateJson} onChange={(e) => setStateJson(e.target.value)} />
+            <Textarea
+              rows={4}
+              value={stateJson}
+              onChange={(e) => setStateJson(e.target.value)}
+            />
           </Field>
 
           <Field label="actions (JSON array)">
@@ -130,11 +136,11 @@ export function DecisionHubPage() {
             Select action
           </Button>
 
-          {rl.isError ? (
+          {rl.isError && (
             <Alert variant="danger">
-              {rl.error instanceof Error ? rl.error.message : 'RL failed'}
+              {(rl.error as Error).message}
             </Alert>
-          ) : null}
+          )}
 
           {rl.data ? <JsonPanel value={rl.data} /> : <p className="muted">No RL output yet.</p>}
         </div>

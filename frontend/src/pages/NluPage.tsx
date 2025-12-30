@@ -33,15 +33,15 @@ export function NluPage() {
     }
   }, [contextJson])
 
-  const summarize = useMutation<any>({
+  const summarize = useMutation({
     mutationFn: () => api.summarize({ text }),
   })
 
-  const detectIntent = useMutation<any>({
+  const detectIntent = useMutation({
     mutationFn: () => api.intent({ text }),
   })
 
-  const classifyTask = useMutation<any>({
+  const classifyTask = useMutation({
     mutationFn: () => {
       if (!parsedEntities || !parsedContext) {
         throw new Error('Entities/Context must be valid JSON')
@@ -127,13 +127,11 @@ export function NluPage() {
             />
           </Field>
 
-          {classifyTask.isError ? (
+          {classifyTask.isError && (
             <Alert variant="danger" title="Classification failed">
-              {classifyTask.error instanceof Error
-                ? classifyTask.error.message
-                : 'Request failed'}
+              {(classifyTask.error as Error).message}
             </Alert>
-          ) : null}
+          )}
 
           <Button
             onClick={() => classifyTask.mutate()}
@@ -146,31 +144,13 @@ export function NluPage() {
 
       <Card title="Outputs">
         <div className="stack">
-          {summarize.isError ? (
-            <Alert variant="danger">
-              {summarize.error instanceof Error
-                ? summarize.error.message
-                : 'Request failed'}
-            </Alert>
-          ) : null}
+          {summarize.data && <JsonPanel value={summarize.data} />}
+          {detectIntent.data && <JsonPanel value={detectIntent.data} />}
+          {classifyTask.data && <JsonPanel value={classifyTask.data} />}
 
-          {summarize.data ? <JsonPanel value={summarize.data} /> : null}
-
-          {detectIntent.isError ? (
-            <Alert variant="danger">
-              {detectIntent.error instanceof Error
-                ? detectIntent.error.message
-                : 'Request failed'}
-            </Alert>
-          ) : null}
-
-          {detectIntent.data ? <JsonPanel value={detectIntent.data} /> : null}
-
-          {classifyTask.data ? <JsonPanel value={classifyTask.data} /> : null}
-
-          {!summarize.data && !detectIntent.data && !classifyTask.data ? (
+          {!summarize.data && !detectIntent.data && !classifyTask.data && (
             <p className="muted">Run a flow to see output.</p>
-          ) : null}
+          )}
         </div>
       </Card>
     </div>
