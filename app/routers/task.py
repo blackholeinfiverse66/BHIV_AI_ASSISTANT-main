@@ -43,7 +43,11 @@ class TaskResponse(BaseModel):
 @router.post("/task")
 async def create_task_classification(request: TaskRequest):
     result = process_message(message=request.task, metadata={"source": "task"})
-    return result
+    return {
+        "message": f"I classified your task as '{result['intent']}'.",
+        "data": result,
+        "meta": result.get("meta", {})
+    }
 
 
 @router.post("/tasks", response_model=TaskResponse)

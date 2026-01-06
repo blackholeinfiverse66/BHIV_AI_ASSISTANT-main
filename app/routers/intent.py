@@ -11,4 +11,8 @@ class IntentRequest(BaseModel):
 @router.post("/intent")
 async def detect_intent(request: IntentRequest):
     result = process_message(message=request.text, metadata={"source": "intent"})
-    return {"status": result["status"], "intent": result["intent"]}
+    return {
+        "message": f"I detected that your intent is '{result['intent']}'.",
+        "data": result,
+        "meta": {"intent": result["intent"]}
+    }

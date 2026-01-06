@@ -1,10 +1,10 @@
 // Request/response typings aligned to the FastAPI routers under app/routers/*
 
 export type SummarizeRequest = { text: string }
-export type SummarizeResponse = Record<string, unknown>
+export type SummarizeResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
 export type IntentRequest = { text: string }
-export type IntentResponse = Record<string, unknown>
+export type IntentResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
 export type TaskClassificationRequest = {
   intent: string
@@ -14,7 +14,7 @@ export type TaskClassificationRequest = {
   confidence?: number
   text?: string
 }
-export type TaskClassificationResponse = { task: unknown }
+export type TaskClassificationResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
 export type TaskCreateRequest = { description: string }
 export type TaskUpdateRequest = { description?: string | null; status?: string | null }
@@ -32,7 +32,7 @@ export type EmbedRequest = {
   session_id?: string
   platform?: string
 }
-export type EmbedResponse = { embeddings: number[][]; obfuscated_embeddings: number[][] }
+export type EmbedResponse = { message: string; data: { embeddings: number[][]; obfuscated_embeddings: number[][] }; meta: Record<string, unknown> }
 
 export type SimilarityRequest = {
   texts1: string[]
@@ -41,7 +41,7 @@ export type SimilarityRequest = {
   session_id?: string
   platform?: string
 }
-export type SimilarityResponse = { similarities: number[][] }
+export type SimilarityResponse = { message: string; data: { similarities: number[][] }; meta: Record<string, unknown> }
 
 export type RespondRequest = {
   query: string
@@ -73,7 +73,7 @@ export type VoiceTTSResponse = { audio_base64: string }
 
 export type VoiceSTTResponse = { text: string; language: string; confidence: number | null }
 
-export type DecisionHubResponse = Record<string, unknown>
+export type DecisionHubResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
 export type TokenRequest = { username: string }
 export type TokenResponse = { access_token: string; token_type: 'bearer' }

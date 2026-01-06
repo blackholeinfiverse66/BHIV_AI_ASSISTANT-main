@@ -144,9 +144,24 @@ export function NluPage() {
 
       <Card title="Outputs">
         <div className="stack">
-          {summarize.data && <JsonPanel value={summarize.data} />}
-          {detectIntent.data && <JsonPanel value={detectIntent.data} />}
-          {classifyTask.data && <JsonPanel value={classifyTask.data} />}
+          {summarize.data && (
+            <div>
+              <p>{summarize.data.message}</p>
+              <details><summary>Debug JSON</summary><JsonPanel value={summarize.data} /></details>
+            </div>
+          )}
+          {detectIntent.data && (
+            <div>
+              <p>{detectIntent.data.message}</p>
+              <details><summary>Debug JSON</summary><JsonPanel value={detectIntent.data} /></details>
+            </div>
+          )}
+          {classifyTask.data && (
+            <div>
+              <p>{classifyTask.data.message}</p>
+              <details><summary>Debug JSON</summary><JsonPanel value={classifyTask.data} /></details>
+            </div>
+          )}
 
           {!summarize.data && !detectIntent.data && !classifyTask.data && (
             <p className="muted">Run a flow to see output.</p>

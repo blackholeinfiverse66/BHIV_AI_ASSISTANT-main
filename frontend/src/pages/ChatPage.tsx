@@ -68,7 +68,13 @@ export function ChatPage() {
       <Card title="Decision Output">
         {decision.isPending && <p className="muted">Processing…</p>}
         {decision.data ? (
-          <JsonPanel value={decision.data} />
+          <div className="stack">
+            <p>{decision.data.message}</p>
+            <details>
+              <summary>Debug JSON</summary>
+              <JsonPanel value={decision.data} />
+            </details>
+          </div>
         ) : (
           <p className="muted">No response yet.</p>
         )}

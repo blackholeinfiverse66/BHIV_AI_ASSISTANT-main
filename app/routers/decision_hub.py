@@ -22,4 +22,8 @@ async def make_decision(
             "voice_input": voice_input,
         }
     )
-    return result
+    return {
+        "message": "I've analyzed your input and determined the best course of action.",
+        "data": result,
+        "meta": {}
+    }

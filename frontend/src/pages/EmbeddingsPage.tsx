@@ -87,12 +87,18 @@ export function EmbeddingsPage() {
         ) : null}
 
         {embed.data ? (
-          <JsonPanel
-            value={{
-              ...(embed.data as any),
-              _meta: { count: (embed.data as any).embeddings.length, dims },
-            }}
-          />
+          <div className="stack">
+            <p>{embed.data.message}</p>
+            <details>
+              <summary>Debug JSON</summary>
+              <JsonPanel
+                value={{
+                  ...(embed.data as any),
+                  _meta: { count: (embed.data as any).data.embeddings.length, dims },
+                }}
+              />
+            </details>
+          </div>
         ) : (
           <p className="muted">No embeddings yet.</p>
         )}
@@ -121,7 +127,12 @@ export function EmbeddingsPage() {
           </Alert>
         ) : null}
 
-        {similarity.data ? <JsonPanel value={similarity.data} /> : <p className="muted">No result yet.</p>}
+        {similarity.data ? (
+          <div className="stack">
+            <p>{similarity.data.message}</p>
+            <details><summary>Debug JSON</summary><JsonPanel value={similarity.data} /></details>
+          </div>
+        ) : <p className="muted">No result yet.</p>}
       </Card>
     </div>
   )
