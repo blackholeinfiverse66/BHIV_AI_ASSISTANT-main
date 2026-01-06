@@ -8,7 +8,6 @@ import type {
   TaskClassificationResponse,
   TaskCreateRequest,
   TaskUpdateRequest,
-  Task,
   TaskResponse,
   TaskListResponse,
   TaskDeleteResponse,
