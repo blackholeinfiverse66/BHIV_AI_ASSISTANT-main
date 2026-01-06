@@ -15,11 +15,15 @@ selector = RLActionSelector()
 @router.post("/rl_action")
 async def select_rl_action(request: RLActionRequest):
     selected_action, probabilities, ranking = selector.select_action(
-        request.state, 
+        request.state,
         request.actions
     )
     return {
-        "selected_action": selected_action,
-        "probabilities": probabilities,
-        "ranking": ranking
+        "message": "RL action selected successfully",
+        "data": {
+            "selected_action": selected_action,
+            "probabilities": probabilities,
+            "ranking": ranking
+        },
+        "meta": {}
     }

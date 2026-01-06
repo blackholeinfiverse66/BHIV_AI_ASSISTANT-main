@@ -24,4 +24,8 @@ async def text_to_speech(request: TTSRequest):
     # Mock TTS: generate base64 encoded mock audio
     mock_audio = f"Mock audio for: {tts_text}".encode('utf-8')
     audio_base64 = base64.b64encode(mock_audio).decode()
-    return {"audio_base64": audio_base64}
+    return {
+        "message": "Text converted to speech successfully",
+        "data": {"audio_base64": audio_base64},
+        "meta": {}
+    }

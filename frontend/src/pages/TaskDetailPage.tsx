@@ -9,6 +9,7 @@ import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import { useApi } from '../api/useApi'
 import { getErrorMessage } from '../api/errors'
+import type { TaskResponse } from '../api/types'
 
 export function TaskDetailPage() {
   const api = useApi()
@@ -22,7 +23,7 @@ export function TaskDetailPage() {
     enabled: Number.isFinite(taskId),
   })
 
-  const current = taskQuery.data
+  const current = taskQuery.data?.data
 
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<'pending' | 'in_progress' | 'done'>('pending')
@@ -33,7 +34,7 @@ export function TaskDetailPage() {
     setStatus(current.status as 'pending' | 'in_progress' | 'done')
   }, [current])
 
-  const saveMutation = useMutation({
+  const saveMutation = useMutation<TaskResponse>({
     mutationFn: () => api.updateTask(taskId, { description, status }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['task', taskId] })
@@ -90,6 +91,12 @@ export function TaskDetailPage() {
             >
               Save
             </Button>
+
+            {saveMutation.isSuccess ? (
+              <Alert variant="success">
+                {saveMutation.data.message}
+              </Alert>
+            ) : null}
           </div>
         ) : null}
       </Card>

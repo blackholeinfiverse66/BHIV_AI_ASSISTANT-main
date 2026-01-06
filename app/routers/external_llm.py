@@ -11,4 +11,8 @@ class LLMRequest(BaseModel):
 @router.post("/external_llm")
 async def call_external_llm(request: LLMRequest):
     result = process_message(message=request.prompt, metadata={"source": "external_llm"})
-    return result
+    return {
+        "message": "External LLM response generated",
+        "data": {"response": result.get("response", str(result))},
+        "meta": {}
+    }

@@ -1,5 +1,11 @@
 // Request/response typings aligned to the FastAPI routers under app/routers/*
 
+type ApiResponse<T> = {
+  message: string
+  data: T
+  meta: Record<string, unknown>
+}
+
 export type SummarizeRequest = { text: string }
 export type SummarizeResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
@@ -25,6 +31,10 @@ export type Task = {
   created_at: string
   updated_at: string
 }
+
+export type TaskResponse = ApiResponse<Task>
+export type TaskListResponse = ApiResponse<Task[]>
+export type TaskDeleteResponse = ApiResponse<null>
 
 export type EmbedRequest = {
   texts: string[]
@@ -52,16 +62,16 @@ export type RespondRequest = {
 export type RespondResponse = { response?: string; error?: string } & Record<string, unknown>
 
 export type BHIVRequest = { query: string; context?: Record<string, unknown> }
-export type BHIVResponse = { bhiv_output: unknown }
+export type BHIVResponse = ApiResponse<{ bhiv_output: unknown }>
 
 export type RLActionRequest = { state: Record<string, unknown>; actions: unknown[] }
-export type RLActionResponse = { selected_action: unknown; probabilities: unknown; ranking: unknown }
+export type RLActionResponse = ApiResponse<{ selected_action: unknown; probabilities: unknown; ranking: unknown }>
 
 export type ExternalLLMRequest = { prompt: string; model?: string }
-export type ExternalLLMResponse = { response: string }
+export type ExternalLLMResponse = ApiResponse<{ response: string }>
 
 export type ExternalAppRequest = { app: string; action: string; params?: Record<string, unknown> }
-export type ExternalAppResponse = { result: unknown }
+export type ExternalAppResponse = ApiResponse<{ result: unknown }>
 
 export type VoiceTTSRequest = {
   text: string
@@ -69,9 +79,9 @@ export type VoiceTTSRequest = {
   model?: 'gpt-4o-mini-tts' | 'gpt-4o-realtime-tts'
   save_cache?: boolean
 }
-export type VoiceTTSResponse = { audio_base64: string }
+export type VoiceTTSResponse = ApiResponse<{ audio_base64: string }>
 
-export type VoiceSTTResponse = { text: string; language: string; confidence: number | null }
+export type VoiceSTTResponse = ApiResponse<{ text: string; language: string; confidence: number | null }>
 
 export type DecisionHubResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 

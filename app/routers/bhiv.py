@@ -42,4 +42,8 @@ bhiv = BHIVCore(memory_manager, agents, tools, reasoner)
 @router.post("/bhiv/run")
 async def run_bhiv(request: BHIVRequest):
     result = await bhiv.process(request)
-    return {"bhiv_output": result}
+    return {
+        "message": "BHIV process completed successfully",
+        "data": {"bhiv_output": result},
+        "meta": {}
+    }

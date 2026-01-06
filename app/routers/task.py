@@ -50,40 +50,48 @@ async def create_task_classification(request: TaskRequest):
     }
 
 
-@router.post("/tasks", response_model=TaskResponse)
+@router.post("/tasks")
 async def create_task(request: TaskRequest, db: AsyncSession = Depends(get_db)):
     task = Task(description=request.description)
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    return TaskResponse(
-        id=task.id,
-        description=task.description,
-        status=task.status,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat()
-    )
+    return {
+        "message": "Task created successfully",
+        "data": {
+            "id": task.id,
+            "description": task.description,
+            "status": task.status,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat()
+        },
+        "meta": {}
+    }
 
 
-@router.get("/tasks", response_model=List[TaskResponse])
+@router.get("/tasks")
 async def get_tasks(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task))
     tasks = result.scalars().all()
 
-    return [
-        TaskResponse(
-            id=t.id,
-            description=t.description,
-            status=t.status,
-            created_at=t.created_at.isoformat(),
-            updated_at=t.updated_at.isoformat()
-        )
-        for t in tasks
-    ]
+    return {
+        "message": "Tasks retrieved successfully",
+        "data": [
+            {
+                "id": t.id,
+                "description": t.description,
+                "status": t.status,
+                "created_at": t.created_at.isoformat(),
+                "updated_at": t.updated_at.isoformat()
+            }
+            for t in tasks
+        ],
+        "meta": {}
+    }
 
 
-@router.get("/tasks/{task_id}", response_model=TaskResponse)
+@router.get("/tasks/{task_id}")
 async def get_task_by_id(task_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
@@ -91,16 +99,20 @@ async def get_task_by_id(task_id: int, db: AsyncSession = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    return TaskResponse(
-        id=task.id,
-        description=task.description,
-        status=task.status,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat()
-    )
+    return {
+        "message": "Task retrieved successfully",
+        "data": {
+            "id": task.id,
+            "description": task.description,
+            "status": task.status,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat()
+        },
+        "meta": {}
+    }
 
 
-@router.put("/tasks/{task_id}", response_model=TaskResponse)
+@router.put("/tasks/{task_id}")
 async def update_task(task_id: int, request: TaskUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
@@ -125,13 +137,17 @@ async def update_task(task_id: int, request: TaskUpdate, db: AsyncSession = Depe
         await db.commit()
         await db.refresh(task)
 
-    return TaskResponse(
-        id=task.id,
-        description=task.description,
-        status=task.status,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat()
-    )
+    return {
+        "message": "Task updated successfully",
+        "data": {
+            "id": task.id,
+            "description": task.description,
+            "status": task.status,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat()
+        },
+        "meta": {}
+    }
 
 
 @router.delete("/tasks/{task_id}")
@@ -145,4 +161,4 @@ async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(Task).where(Task.id == task_id))
     await db.commit()
 
-    return {"message": "Task deleted successfully"}
+    return {"message": "Task deleted successfully", "data": None, "meta": {}}

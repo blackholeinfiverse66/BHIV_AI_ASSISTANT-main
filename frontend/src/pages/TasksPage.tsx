@@ -9,7 +9,7 @@ import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import { useApi } from '../api/useApi'
 import { getErrorMessage, ApiError } from '../api/errors'
-import type { Task } from '../api/types'
+import type { Task, TaskListResponse, TaskResponse, TaskDeleteResponse } from '../api/types'
 
 export function TasksPage() {
   const api = useApi()
@@ -21,10 +21,10 @@ export function TasksPage() {
     queryFn: () => api.listTasks(),
   })
 
-  const createMutation = useMutation<Task, ApiError, void, { prev?: Task[] }>({
+  const createMutation = useMutation<TaskResponse, ApiError, void, { prev?: TaskListResponse }>({
     mutationFn: () => api.createTask({ description }),
     onMutate: async () => {
-      const prev = qc.getQueryData<Task[]>(['tasks'])
+      const prev = qc.getQueryData<TaskListResponse>(['tasks'])
       const optimistic: Task = {
         id: -Date.now(),
         description,
@@ -32,7 +32,7 @@ export function TasksPage() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
-      qc.setQueryData(['tasks'], (old: Task[] | undefined) => [optimistic, ...(old || [])])
+      qc.setQueryData(['tasks'], (old: TaskListResponse | undefined) => old ? { ...old, data: [optimistic, ...old.data] } : { message: 'Optimistic', data: [optimistic], meta: {} })
       setDescription('')
       return { prev }
     },
@@ -44,13 +44,11 @@ export function TasksPage() {
     },
   })
 
-  const deleteMutation = useMutation<{ message: string }, ApiError, number, { prev?: Task[] }>({
+  const deleteMutation = useMutation<TaskDeleteResponse, ApiError, number, { prev?: TaskListResponse }>({
     mutationFn: (id) => api.deleteTask(id),
     onMutate: async (id) => {
-      const prev = qc.getQueryData<Task[]>(['tasks'])
-      qc.setQueryData(['tasks'], (old: Task[] | undefined) =>
-        (old || []).filter((t) => t.id !== id),
-      )
+      const prev = qc.getQueryData<TaskListResponse>(['tasks'])
+      qc.setQueryData(['tasks'], (old: TaskListResponse | undefined) => old ? { ...old, data: old.data.filter((t) => t.id !== id) } : old)
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
@@ -62,7 +60,7 @@ export function TasksPage() {
   })
 
   const sorted = useMemo(() => {
-    const items = tasksQuery.data || []
+    const items = tasksQuery.data?.data || []
     return [...items].sort((a, b) => b.id - a.id)
   }, [tasksQuery.data])
 
@@ -91,6 +89,12 @@ export function TasksPage() {
           >
             Create
           </Button>
+
+          {createMutation.isSuccess ? (
+            <Alert variant="success" title="Success">
+              {createMutation.data.message}
+            </Alert>
+          ) : null}
         </div>
       </Card>
 

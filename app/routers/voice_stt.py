@@ -44,4 +44,8 @@ async def voice_stt(file: UploadFile = File(...)):
 
     # Pass text to pipeline
     result = process_message(message=transcribed_text, metadata={"source": "voice_stt"})
-    return result
+    return {
+        "message": "Voice transcribed successfully",
+        "data": {"text": transcribed_text, "language": "en", "confidence": None},
+        "meta": {}
+    }

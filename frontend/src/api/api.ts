@@ -9,6 +9,9 @@ import type {
   TaskCreateRequest,
   TaskUpdateRequest,
   Task,
+  TaskResponse,
+  TaskListResponse,
+  TaskDeleteResponse,
   EmbedRequest,
   EmbedResponse,
   SimilarityRequest,
@@ -55,33 +58,33 @@ export function createBhivApi(client: ApiClient) {
 
     // ===== Task management =====
     createTask: (req: TaskCreateRequest) =>
-      client.request<Task>({
+      client.request<TaskResponse>({
         method: 'POST',
         path: '/api/tasks',
         json: req,
       }),
 
     listTasks: () =>
-      client.request<Task[]>({
+      client.request<TaskListResponse>({
         method: 'GET',
         path: '/api/tasks',
       }),
 
     getTask: (taskId: number) =>
-      client.request<Task>({
+      client.request<TaskResponse>({
         method: 'GET',
         path: `/api/tasks/${taskId}`,
       }),
 
     updateTask: (taskId: number, req: TaskUpdateRequest) =>
-      client.request<Task>({
+      client.request<TaskResponse>({
         method: 'PUT',
         path: `/api/tasks/${taskId}`,
         json: req,
       }),
 
     deleteTask: (taskId: number) =>
-      client.request<{ message: string }>({
+      client.request<TaskDeleteResponse>({
         method: 'DELETE',
         path: `/api/tasks/${taskId}`,
       }),

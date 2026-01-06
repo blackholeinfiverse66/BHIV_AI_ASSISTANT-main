@@ -53,7 +53,11 @@ async def interact_external_app(request: AppRequest):
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported app '{request.app}'")
 
-        return {"result": result}
+        return {
+            "message": f"External app {request.app} action {request.action} executed successfully",
+            "data": {"result": result},
+            "meta": {}
+        }
 
     except ValueError as e:
         raise HTTPException(status_code=500, detail=f"Configuration error: {str(e)}")
