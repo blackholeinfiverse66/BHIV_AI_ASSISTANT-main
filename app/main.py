@@ -50,6 +50,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
+    logger.info("Dynamic CORS enabled: allow_origin_regex='https://.*\\.vercel\\.app', allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173']")
     yield
 
 # ------------------------------
@@ -121,24 +122,37 @@ async def security_middleware(request: Request, call_next):
 
     # ✅ Allow browser preflight
     if request.method == "OPTIONS":
-        return await call_next(request)
+        response = await call_next(request)
+        if request.url.path.startswith("/api"):
+            logger.info(f"Request: method={request.method}, path={request.url.path}, origin={request.headers.get('origin', 'none')}")
+            logger.info(f"Response: status={response.status_code}")
+        return response
 
     # ✅ Allow non-API routes
     if not request.url.path.startswith("/api"):
         return await call_next(request)
+
+    if request.url.path.startswith("/api"):
+        logger.info(f"Request: method={request.method}, path={request.url.path}, origin={request.headers.get('origin', 'none')}")
 
     # Rate limit
     rate_limit(request)
 
     api_key = request.headers.get("X-API-Key")
     if api_key != os.getenv("API_KEY"):
-        return JSONResponse(
+        response = JSONResponse(
             status_code=401,
             content={"detail": "Authentication failed"},
         )
+        if request.url.path.startswith("/api"):
+            logger.info(f"Response: status={response.status_code}")
+        return response
 
     audit_log(request, "api_key_user")
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path.startswith("/api"):
+        logger.info(f"Response: status={response.status_code}")
+    return response
 
 # ------------------------------
 # Routers (PUBLIC APIs)
@@ -171,3 +185,10 @@ async def root():
         "message": "Assistant Core v3 API",
         "status": "running",
     }
+
+@app.post("/api/rotate_key")
+async def rotate_api_key():
+    import secrets
+    new_key = secrets.token_hex(32)
+    # In production, update env or db
+    return {"new_api_key": new_key, "message": "Rotate your API key and update environment variables"}

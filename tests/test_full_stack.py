@@ -1,10 +1,17 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+import os
+
+# Mock API key for tests
+os.environ["API_KEY"] = "localtest"
 
 client = TestClient(app)
 # Set API key for all requests
 client.headers.update({"X-API-Key": "localtest"})
+
+# Client without API key for auth tests
+client_no_auth = TestClient(app)
 
 def test_root():
     response = client.get("/")

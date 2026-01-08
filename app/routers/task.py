@@ -24,7 +24,7 @@ class TaskClassificationRequest(BaseModel):
 
 
 class TaskRequest(BaseModel):
-    task: str
+    description: str
 
 
 class TaskUpdate(BaseModel):
