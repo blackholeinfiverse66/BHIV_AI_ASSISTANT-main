@@ -28,6 +28,7 @@ import type {
   VoiceTTSResponse,
   VoiceSTTResponse,
   DecisionHubResponse,
+  AssistantResponse,
   TokenRequest,
   TokenResponse,
 } from './types'
@@ -184,6 +185,18 @@ export function createBhivApi(client: ApiClient) {
         method: 'POST',
         path: '/api/bhiv/run',
         json: req,
+      }),
+
+    // ===== Assistant =====
+    assistant: (req: { message: string; platform?: string }) =>
+      client.request<AssistantResponse>({
+        method: 'POST',
+        path: '/api/assistant',
+        json: {
+          version: '3.0.0',
+          input: { message: req.message },
+          context: { platform: req.platform || 'web' },
+        },
       }),
   }
 }

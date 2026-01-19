@@ -1,18 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../../components/Button'
-
-const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/chat', label: 'Chat' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/nlu', label: 'NLU' },
-  { to: '/embeddings', label: 'Embeddings' },
-  { to: '/voice', label: 'Voice' },
-  { to: '/decision', label: 'Decision Hub' },
-  { to: '/external', label: 'External' },
-  { to: '/settings', label: 'Settings' },
-]
 
 export function AppLayout() {
   const { state, logout } = useAuth()
@@ -35,19 +23,9 @@ export function AppLayout() {
       </header>
 
 
-      <div className="content">
-        <nav className="sidebar" aria-label="Primary">
-          {navItems.map((it) => (
-            <NavLink key={it.to} to={it.to} end={it.to === '/'} className={({ isActive }) => (isActive ? 'navLink navLink--active' : 'navLink')}>
-              {it.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <main className="main" role="main">
-          <Outlet />
-        </main>
-      </div>
+      <main className="main" role="main" style={{ marginLeft: 0 }}>
+        <Outlet />
+      </main>
     </div>
   )
 }

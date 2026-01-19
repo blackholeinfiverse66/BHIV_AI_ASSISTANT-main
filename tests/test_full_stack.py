@@ -123,5 +123,32 @@ def test_multi_llm_routing():
         response = client.post("/api/external_llm", json={"prompt": "Hello", "model": model})
         assert response.status_code == 200
 
+# PHASE 1: CORS and Auth Tests
+
+def test_options_bypass_with_api_key():
+    """OPTIONS request should bypass auth and return 204 with CORS headers"""
+    response = client.options("/api/tasks", headers={"Origin": "https://test.vercel.app"})
+    assert response.status_code == 204
+    assert "Access-Control-Allow-Origin" in response.headers
+    assert "Access-Control-Allow-Headers" in response.headers
+    assert "Access-Control-Allow-Methods" in response.headers
+
+def test_options_bypass_without_api_key():
+    """OPTIONS request without API key should still bypass auth"""
+    response = client_no_auth.options("/api/tasks", headers={"Origin": "https://test.vercel.app"})
+    assert response.status_code == 204
+    assert "Access-Control-Allow-Origin" in response.headers
+
+def test_get_tasks_without_api_key():
+    """Real GET request without API key should be rejected"""
+    response = client_no_auth.get("/api/tasks")
+    assert response.status_code in [401, 403]
+
+def test_get_tasks_with_api_key():
+    """Real GET request with API key should succeed"""
+    response = client.get("/api/tasks")
+    assert response.status_code == 200
+    assert "data" in response.json()
+
 if __name__ == "__main__":
     pytest.main([__file__])

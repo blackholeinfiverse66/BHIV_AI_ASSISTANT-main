@@ -85,6 +85,19 @@ export type VoiceSTTResponse = ApiResponse<{ text: string; language: string; con
 
 export type DecisionHubResponse = { message: string; data: Record<string, unknown>; meta: Record<string, unknown> }
 
+export type AssistantRequest = {
+  version: string
+  input: { message: string }
+  context: { platform: string }
+}
+export type AssistantResponse = ApiResponse<{
+  result: {
+    response: string
+    type: string
+    task?: unknown
+  }
+}>
+
 export type TokenRequest = { username: string }
 export type TokenResponse = { access_token: string; token_type: 'bearer' }
 
