@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import type { ChatThread } from '../hooks/useChatStore'
 
+//testing 
+
 type SidebarProps = {
   chats: ChatThread[]
   activeChatId: string
