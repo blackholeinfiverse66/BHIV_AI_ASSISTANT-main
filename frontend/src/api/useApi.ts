@@ -11,7 +11,11 @@ export function useApi() {
       // No auth needed
       return null
     })
-    return createBhivApi(client)
+    const bhivApi = createBhivApi(client)
+    return {
+      ...bhivApi,
+      isConfigured: client.isConfigured,
+    }
   }, [])
 }
 

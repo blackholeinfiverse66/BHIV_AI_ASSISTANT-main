@@ -60,6 +60,7 @@ function deriveMessage(payload: unknown): string {
 }
 
 export class ApiClient {
+  readonly isConfigured: boolean
   private readonly baseUrl: string
   private readonly apiKey: string
   private readonly getAuth: () => AuthHeaders | null
@@ -70,9 +71,8 @@ export class ApiClient {
     this.baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/$/, '') : ''
     this.apiKey = import.meta.env.VITE_API_KEY
 
-    if (!this.baseUrl || !this.apiKey) {
-      throw new Error('VITE_API_BASE_URL and VITE_API_KEY must be set')
-    }
+    // ✅ FIX: Don't throw - expose configuration status instead
+    this.isConfigured = Boolean(this.baseUrl && this.apiKey)
 
     this.getAuth = getAuth
   }

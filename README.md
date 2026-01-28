@@ -120,6 +120,9 @@ The React/TypeScript frontend provides a complete UI for all backend features wi
 - **Responsive Design**: Dark theme, mobile-friendly, accessible (WCAG compliant)
 - **Real-time Updates**: Optimistic updates, loading states, error handling
 - **Development Tools**: Testing, linting, formatting, build scripts
+- **Advanced Chat UI**: Collapsible sidebar, inline editing, smooth animations, professional UX
+- **Dynamic Input Positioning**: Context-aware input placement (welcome screen → chat mode)
+- **Chat Management**: Rename, delete with confirmation, organized chat history
 
 ## Quick Start (Frontend)
 
@@ -403,7 +406,15 @@ python -c "from app.main import app; print('BHIV Ready')"
 
 # 📝 Recent Updates
 
-### v3.0.0 (Latest)
+### v3.1.0 (Latest) - Major UI/UX Overhaul
+- **Collapsible Sidebar System**: Completely hidden sidebar on desktop with smooth animations, persistent state
+- **Advanced Chat Management**: Inline title editing, delete with confirmation, three-dot menu interface
+- **Dynamic Input Positioning**: Context-aware input placement (welcome screen → chat mode transitions)
+- **Welcome Screen Redesign**: Clean, focused design with prominent input box, removed clutter
+- **Professional Animations**: 180ms ease-out transitions, focus glows, button rotations, scale effects
+- **Enhanced UX**: Clickable title for new chats, improved mobile experience, accessibility compliance
+
+### v3.0.0
 - **Frontend API Refactoring**: Implemented single `apiPost` helper for all backend communication, ensuring consistent auth, error handling, and support for both JSON and FormData payloads.
 - **CORS Configuration Update**: Updated CORS middleware to allow origins from `http://localhost:5173` and `http://127.0.0.1:5173` for better development compatibility.
 - **Environment Variables Standardization**: Set default `VITE_API_BASE_URL=http://127.0.0.1:8000/api` and `VITE_API_KEY=bhiv_demo_key_12345` for consistent frontend-backend integration.

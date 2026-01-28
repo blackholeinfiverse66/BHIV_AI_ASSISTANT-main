@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { Textarea } from '../components/Textarea'
 import { Button } from '../components/Button'
+import { Sidebar } from '../components/Sidebar'
 import { useApi } from '../api/useApi'
+import { useChatStore, type Message as ChatMessage } from '../hooks/useChatStore'
 
 type Message = {
   id: string
@@ -11,103 +12,287 @@ type Message = {
   type?: string
 }
 
+// Safely parse response and extract message
+function extractAssistantMessage(data: unknown): string {
+  try {
+    if (!data || typeof data !== 'object') {
+      return "I'm having trouble processing that. Please try again."
+    }
+
+    const response = data as any
+    const result = response?.data?.result
+
+    if (!result || typeof result !== 'object') {
+      return "I'm having trouble processing that. Please try again."
+    }
+
+    const message = result.response
+    if (!message || typeof message !== 'string') {
+      return "I'm having trouble processing that. Please try again."
+    }
+
+    return message
+  } catch {
+    return "I'm having trouble processing that. Please try again."
+  }
+}
+
 export function ChatPage() {
-  const api = useApi()
+  const { isConfigured, assistant } = useApi()
+  const {
+    chats,
+    activeChatId,
+    setActiveChatId,
+    getActiveChat,
+    addMessage: addMessageToStore,
+    renameChat,
+    deleteChat,
+    isLoaded,
+  } = useChatStore()
 
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'connecting' | 'offline'>('online')
-  const [toast, setToast] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('bhiv_sidebar_collapsed')
+    return saved ? JSON.parse(saved) : true // Default collapsed
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const loadingStartTimeRef = useRef<number | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const [inputFocused, setInputFocused] = useState(false)
+  const [placeholderIndex, setPlaceholderIndex] = useState(0)
+  const [displayedPlaceholder, setDisplayedPlaceholder] = useState('')
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const placeholders = [
+    'Ask me anything…',
+    'Plan your day…',
+    'Get help with tasks…',
+  ]
 
+  // Get messages from active chat
+  const activeChat = getActiveChat()
+  const messages: Message[] = activeChat
+    ? activeChat.messages.map((m: ChatMessage) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        type: undefined,
+      }))
+    : []
+
+  // Persist sidebar collapsed state
   useEffect(() => {
-    scrollToBottom()
+    localStorage.setItem('bhiv_sidebar_collapsed', JSON.stringify(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
+  // No auto-initialization - start fresh
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  // Focus textarea on mount
   useEffect(() => {
     textareaRef.current?.focus()
   }, [])
 
+  // Ensure loading state never stays stuck
   useEffect(() => {
-    const handleOnline = () => {
-      setConnectionStatus('online')
-      showToast('Connected')
-    }
-    const handleOffline = () => {
-      setConnectionStatus('offline')
-      showToast('Connection lost')
-    }
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
+    if (!loading) return
 
-  const showToast = (message: string) => {
-    setToast(message)
-    setTimeout(() => setToast(null), 3000)
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[Chat] Loading state exceeded 60s timeout, forcing reset')
+        setLoading(false)
+        const fallbackMsg: ChatMessage = {
+          id: (Date.now() + 999).toString(),
+          role: 'assistant',
+          content: "I'm taking too long to respond. Please try again.",
+          timestamp: Date.now(),
+        }
+        addMessageToStore('assistant', fallbackMsg.content)
+      }
+    }, 60000)
+
+    return () => clearTimeout(timeout)
+  }, [loading, addMessageToStore])
+
+  // Animated placeholder effect
+  useEffect(() => {
+    if (input.length > 0) {
+      return
+    }
+
+    const currentPlaceholder = placeholders[placeholderIndex]
+    let charIndex = 0
+    let isDeleting = false
+    let typeTimeout: NodeJS.Timeout
+
+    const type = () => {
+      if (!isDeleting) {
+        if (charIndex < currentPlaceholder.length) {
+          setDisplayedPlaceholder(currentPlaceholder.slice(0, charIndex + 1))
+          charIndex++
+          typeTimeout = setTimeout(type, 50)
+        } else {
+          typeTimeout = setTimeout(() => {
+            isDeleting = true
+            type()
+          }, 2000)
+        }
+      } else {
+        if (charIndex > 0) {
+          setDisplayedPlaceholder(currentPlaceholder.slice(0, charIndex - 1))
+          charIndex--
+          typeTimeout = setTimeout(type, 30)
+        } else {
+          setPlaceholderIndex((prev) => (prev + 1) % placeholders.length)
+          isDeleting = false
+          typeTimeout = setTimeout(type, 500)
+        }
+      }
+    }
+
+    typeTimeout = setTimeout(type, 500)
+    return () => clearTimeout(typeTimeout)
+  }, [input, placeholderIndex])
+
+  // Configuration error UI - renders if env vars not set
+  if (!isConfigured) {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `
+          radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05), transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(0,0,0,0.3), transparent 50%),
+          linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0c1222 100%)
+        `,
+        color: 'white',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        padding: '24px',
+      }}>
+        <div style={{
+          maxWidth: '500px',
+          textAlign: 'center',
+        }}>
+          <h1 style={{
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            marginBottom: '16px',
+            color: 'rgba(255,255,255,0.95)',
+          }}>Configuration Error</h1>
+          <p style={{
+            fontSize: '1rem',
+            color: 'rgba(255,255,255,0.7)',
+            marginBottom: '24px',
+            lineHeight: '1.6',
+          }}>
+            The API connection is not configured. Please set the following environment variables:
+          </p>
+          <div style={{
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            padding: '16px',
+            textAlign: 'left',
+            fontFamily: 'monospace',
+            fontSize: '0.9rem',
+            marginBottom: '24px',
+            color: 'rgba(255,255,255,0.6)',
+          }}>
+            <div>VITE_API_BASE_URL</div>
+            <div>VITE_API_KEY</div>
+          </div>
+          <p style={{
+            fontSize: '0.9rem',
+            color: 'rgba(255,255,255,0.5)',
+          }}>
+            Please check your .env file and restart the development server.
+          </p>
+        </div>
+      </div>
+    )
   }
 
-  const assistantMutation = useMutation({
-    mutationFn: (message: string) => api.assistant({ message }),
-    onMutate: () => {
-      setLoading(true)
-      setConnectionStatus('connecting')
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: input,
-      }
-      setMessages(prev => [...prev, userMessage])
-      setInput('')
-    },
-    onSuccess: (data) => {
-      const result = data.data.result
-      let content = result.response
-      if (result.type === 'task') {
-        content += '\n\nTask created'
-      }
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content,
-        type: result.type,
-      }
-      setMessages(prev => [...prev, assistantMessage])
-      setConnectionStatus('online')
-    },
-    onError: (error: any) => {
-      let errorMessage = 'Something went wrong. Try again.'
-      if (!navigator.onLine) {
-        errorMessage = 'Assistant unavailable. Please check your connection.'
-      } else if (error?.response?.status === 400) {
-        errorMessage = 'Unable to process that. Try rephrasing.'
-      }
-      const errorMsg: Message = {
-        id: (Date.now() + 2).toString(),
-        role: 'assistant',
-        content: errorMessage,
-      }
-      setMessages(prev => [...prev, errorMsg])
-      setConnectionStatus(navigator.onLine ? 'online' : 'offline')
-    },
-    onSettled: () => {
-      setLoading(false)
-    },
-  })
+  if (!isLoaded) {
+    return null
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || loading) return
-    assistantMutation.mutate(input)
+
+    // Prevent empty input
+    if (!input.trim() || loading) {
+      return
+    }
+
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Record loading start time for minimum visibility
+    loadingStartTimeRef.current = Date.now()
+
+    // Add user message via store
+    const userInput = input
+    addMessageToStore('user', userInput)
+    setInput('')
+    setLoading(true)
+    setConnectionStatus('connecting')
+
+    // Make request
+    makeAssistantRequest(userInput)
+  }
+
+  const makeAssistantRequest = async (message: string) => {
+    try {
+      const startTime = Date.now()
+      const data = await assistant({ message })
+
+      // Ensure minimum loading visibility of 300ms
+      const elapsed = Date.now() - startTime
+      if (elapsed < 300) {
+        await new Promise(r => setTimeout(r, 300 - elapsed))
+      }
+
+      // Parse response defensively
+      const responseText = extractAssistantMessage(data)
+
+      addMessageToStore('assistant', responseText)
+      setConnectionStatus('online')
+    } catch (error: any) {
+      // Ensure minimum loading visibility even on error
+      const elapsed = Date.now() - (loadingStartTimeRef.current || Date.now())
+      if (elapsed < 300) {
+        await new Promise(r => setTimeout(r, 300 - elapsed))
+      }
+
+      let errorMessage = "I'm having trouble right now. Please try again."
+
+      // Check connection first
+      if (!navigator.onLine) {
+        errorMessage = "I can't reach the server. Please check your connection."
+      } else if (error?.response?.status === 400) {
+        errorMessage = 'That didn\'t work. Could you rephrase that?'
+      } else if (error?.name === 'AbortError') {
+        errorMessage = "I was interrupted. Please try again."
+      }
+
+      addMessageToStore('assistant', errorMessage)
+      setConnectionStatus(navigator.onLine ? 'online' : 'offline')
+    } finally {
+      setLoading(false)
+      loadingStartTimeRef.current = null
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -121,10 +306,10 @@ export function ChatPage() {
 
   const getStatusText = () => {
     switch (connectionStatus) {
-      case 'online': return 'Online'
+      case 'online': return 'Connected'
       case 'connecting': return 'Connecting…'
       case 'offline': return 'Offline'
-      default: return 'Online'
+      default: return 'Connected'
     }
   }
 
@@ -137,83 +322,244 @@ export function ChatPage() {
     }
   }
 
+  const handleToggleSidebar = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(!sidebarOpen)
+    } else {
+      setSidebarCollapsed(!sidebarCollapsed)
+    }
+  }
+
+  const handleCloseSidebar = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false)
+    } else {
+      setSidebarCollapsed(true)
+    }
+  }
+
   return (
     <>
       <style>
         {`
+          /* Breathing Pulse - Subtle and Slow */
+          @keyframes breathingPulse {
+            0% {
+              transform: scale(0.85);
+              opacity: 0.35;
+            }
+            50% {
+              transform: scale(1.05);
+              opacity: 0.55;
+            }
+            100% {
+              transform: scale(0.85);
+              opacity: 0.35;
+            }
+          }
+
+          /* Gentle appearance animations */
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(16px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes fadeInDown {
+            from {
+              opacity: 0;
+              transform: translateY(-8px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
           @keyframes pulse {
             0%, 100% { opacity: 0.5; }
             50% { opacity: 1; }
           }
+
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
           }
+
           @keyframes slideUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
           }
+
           @keyframes typing {
             0%, 60%, 100% { transform: translateY(0); }
             30% { transform: translateY(-10px); }
           }
-          .glow {
-            animation: pulse 2s infinite;
+
+          /* CSS Classes */
+          .breathing-pulse {
+            animation: breathingPulse 5s ease-in-out infinite;
           }
+
           .message-fade-in {
-            animation: fadeIn 0.3s ease-out;
+            animation: fadeIn 0.4s ease-out;
           }
+
           .message-slide-up {
-            animation: slideUp 0.3s ease-out;
+            animation: slideUp 0.4s ease-out;
           }
+
           .typing-dot {
             animation: typing 1.4s infinite ease-in-out;
           }
+
           .typing-dot:nth-child(2) { animation-delay: 0.2s; }
           .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-          .toast {
-            position: fixed;
-            top: 80px;
-            right: 24px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            z-index: 1000;
-            animation: fadeIn 0.3s ease-out;
+
+          .action-card {
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
-          @media (max-width: 767px) {
+
+          .action-card:hover {
+            transform: translateY(-6px);
+            background: rgba(255,255,255,0.08) !important;
+            border-color: rgba(16, 185, 129, 0.5) !important;
+            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.12);
+          }
+
+          .action-card:active {
+            transform: translateY(-2px);
+          }
+
+          /* Focus states for keyboard navigation */
+          .action-card:focus-visible {
+            outline: 2px solid rgba(16, 185, 129, 0.6);
+            outline-offset: 2px;
+          }
+
+          .navbar {
+            animation: fadeInDown 0.5s ease-out;
+          }
+
+          .hero-content {
+            animation: fadeInUp 0.6s ease-out;
+          }
+
+          .action-grid {
+            animation: fadeInUp 0.6s ease-out 0.15s both;
+          }
+
+          .input-composer {
+            animation: fadeInUp 0.5s ease-out 0.2s both;
+          }
+
+          /* Smooth scrollbar */
+          .chat-area::-webkit-scrollbar {
+            width: 6px;
+          }
+
+          .chat-area::-webkit-scrollbar-track {
+            background: transparent;
+          }
+
+          .chat-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+          }
+
+          .chat-area::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+          }
+
+          /* Reduced motion support */
+          @media (prefers-reduced-motion: reduce) {
+            * {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              transition-duration: 0.01ms !important;
+            }
+          }
+
+          /* Mobile optimizations */
+          @media (max-width: 640px) {
+            .input-composer {
+              bottom: 16px !important;
+              padding: 0 16px !important;
+            }
+
             .input-form {
               max-width: 100% !important;
-              padding: 0 16px !important;
+              padding: 11px 14px 11px 16px !important;
+              border-radius: 28px !important;
             }
+
+            .send-button {
+              width: 38px !important;
+              height: 38px !important;
+              min-width: 38px !important;
+              min-height: 38px !important;
+            }
+
             .navbar {
-              height: 48px !important;
+              height: 56px !important;
               padding: 0 16px !important;
             }
-            .navbar h1 {
-              font-size: 1.1rem !important;
+
+            .navbar-title {
+              font-size: 1rem !important;
             }
-            .toast {
-              right: 16px !important;
+
+            .hero-content {
+              padding: 24px 16px !important;
+            }
+
+            .action-grid {
+              grid-template-columns: 1fr !important;
+              max-width: 100% !important;
+              gap: 12px !important;
+            }
+
+            .action-card-label {
+              font-size: 0.9rem !important;
+            }
+
+            .chat-area {
+              padding: 24px 16px 120px 16px !important;
             }
           }
-          @media (min-width: 768px) and (max-width: 1023px) {
+
+          @media (min-width: 641px) and (max-width: 1024px) {
             .chat-area {
               max-width: 720px !important;
             }
-            .input-form {
+
+            .action-grid {
+              max-width: 500px !important;
+            }
+          }
+
+          @media (min-width: 1025px) {
+            .chat-area {
               max-width: 720px !important;
+            }
+
+            .action-grid {
+              max-width: 600px !important;
             }
           }
         `}
       </style>
-      {toast && <div className="toast">{toast}</div>}
       <div style={{
         height: '100vh',
         display: 'flex',
@@ -230,40 +576,103 @@ export function ChatPage() {
         {/* Top Navigation Bar */}
         <header className="navbar" style={{
           height: '64px',
-          background: 'rgba(255,255,255,0.02)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          background: 'rgba(255,255,255,0.03)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 24px',
+          padding: '0 28px',
           position: 'relative',
           zIndex: 10,
+          flexShrink: 0,
+          marginLeft: window.innerWidth >= 768 && !sidebarCollapsed ? '300px' : '0px',
+          transition: 'margin-left 0.25s ease-out',
         }}>
-          <h1 style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            margin: 0,
-            color: 'rgba(255,255,255,0.95)',
-          }}>BHIV Assistant</h1>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}>
+            <button
+              onClick={handleToggleSidebar}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.8)',
+                cursor: 'pointer',
+                padding: '8px',
+                marginRight: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                transition: 'all 0.2s ease-out',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'rgba(16, 185, 129, 0.8)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(255,255,255,0.8)'
+              }}
+              title="Toggle chat history"
+            >
+              ☰
+            </button>
+            <button
+              onClick={() => setActiveChatId('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '1.2rem',
+                fontWeight: '700',
+                margin: 0,
+                color: 'rgba(255,255,255,0.98)',
+                letterSpacing: '-0.6px',
+                cursor: 'pointer',
+                padding: '4px 8px',
+              }}
+              title="Start new chat"
+            >
+              Assistant
+            </button>
+          </div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '0.85rem',
-            color: 'rgba(255,255,255,0.7)',
+            fontSize: '0.75rem',
+            color: 'rgba(255,255,255,0.55)',
+            fontWeight: '600',
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
           }}>
             <div style={{
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
               backgroundColor: getStatusColor(),
-              animation: connectionStatus === 'connecting' ? 'pulse 1s infinite' : 'none',
+              animation: connectionStatus === 'connecting' ? 'pulse 1.5s infinite' : 'none',
+              boxShadow: `0 0 8px ${getStatusColor()}`,
+              transition: 'all 0.3s ease-out',
             }}></div>
-            {getStatusText()}
+            <span>{getStatusText()}</span>
           </div>
         </header>
+
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={handleCloseSidebar}
+          collapsed={sidebarCollapsed}
+          chats={chats}
+          activeChatId={activeChatId}
+          onSelectChat={setActiveChatId}
+          onNewChat={() => setActiveChatId('')}
+          onRenameChat={renameChat}
+          onDeleteChat={deleteChat}
+        />
 
         {/* Chat Conversation Area */}
         <div style={{
@@ -271,83 +680,259 @@ export function ChatPage() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          position: 'relative',
         }}>
           <div className="chat-area" style={{
             flex: 1,
-            maxWidth: '960px',
+            maxWidth: '720px',
             margin: '0 auto',
             width: '100%',
-            padding: '24px',
+            padding: `32px 24px ${(messages.length > 0 || loading) ? '120px' : '32px'} 24px`,
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
+            gap: '16px',
             overflowY: 'auto',
+            transition: 'padding 0.3s ease-out',
           }}>
             {messages.length === 0 && !loading && (
-              <div style={{
+              <div className="hero-content" style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 textAlign: 'center',
-                marginTop: '-10vh',
+                paddingTop: '32px',
+                paddingBottom: '32px',
               }}>
-                <div className="glow" style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(255,255,255,0.1), transparent)',
-                  marginBottom: '24px',
-                }}></div>
+                {/* Breathing Pulse Circle - Subtle and Centered */}
+                <div style={{
+                  position: 'relative',
+                  width: '140px',
+                  height: '140px',
+                  marginBottom: '56px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {/* Outer breathing pulse ring */}
+                  <div className="breathing-pulse" style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15), transparent)',
+                    border: '2px solid rgba(16, 185, 129, 0.25)',
+                  }}></div>
+                  {/* Middle breathing ring */}
+                  <div style={{
+                    position: 'absolute',
+                    width: '100px',
+                    height: '100px',
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08), transparent)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.15)',
+                  }}></div>
+                  {/* Inner subtle glow */}
+                  <div style={{
+                    position: 'absolute',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1), transparent)',
+                  }}></div>
+                </div>
+
+                {/* Hero Text - Professional and Friendly */}
                 <h2 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  color: 'rgba(255,255,255,0.95)',
-                  margin: '0 0 8px 0',
-                }}>Welcome to BHIV Assistant</h2>
+                  fontSize: '2.4rem',
+                  fontWeight: '800',
+                  color: 'rgba(255,255,255,0.99)',
+                  margin: '0 0 20px 0',
+                  letterSpacing: '-1px',
+                  maxWidth: '650px',
+                  lineHeight: '1.15',
+                }}>Hi, I'm your AI Assistant</h2>
+                
                 <p style={{
-                  fontSize: '1rem',
-                  color: 'rgba(255,255,255,0.7)',
-                  margin: 0,
-                }}>Ask me anything to get started.</p>
+                  fontSize: '1.1rem',
+                  color: 'rgba(255,255,255,0.60)',
+                  margin: '0 0 32px 0',
+                  maxWidth: '550px',
+                  lineHeight: '1.75',
+                  fontWeight: '400',
+                  letterSpacing: '0.2px',
+                }}>Ask questions, plan tasks, or explore new ideas — I'm here to help.</p>
+
+                {/* Input Box in Welcome Screen */}
+                <div style={{
+                  maxWidth: '600px',
+                  width: '100%',
+                  marginBottom: '32px',
+                }}>
+                  <form
+                    onSubmit={handleSubmit}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      background: inputFocused
+                        ? 'rgba(255,255,255,0.18)'
+                        : 'rgba(255,255,255,0.09)',
+                      backdropFilter: 'blur(16px)',
+                      border: inputFocused
+                        ? '1.5px solid rgba(16, 185, 129, 0.6)'
+                        : '1.5px solid rgba(255,255,255,0.12)',
+                      borderRadius: '24px',
+                      padding: inputFocused ? '16px 20px' : '12px 18px',
+                      transition: 'all 0.25s ease-out',
+                      boxShadow: inputFocused
+                        ? '0 16px 40px rgba(16, 185, 129, 0.25), 0 0 20px rgba(16, 185, 129, 0.1)'
+                        : '0 6px 20px rgba(0,0,0,0.16)',
+                    }}
+                  >
+                    <Textarea
+                      ref={textareaRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onFocus={() => setInputFocused(true)}
+                      onBlur={() => setInputFocused(false)}
+                      placeholder={input.length > 0 ? '' : displayedPlaceholder}
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'rgba(255,255,255,0.95)',
+                        fontSize: '0.95rem',
+                        resize: 'none',
+                        outline: 'none',
+                        minHeight: '20px',
+                        maxHeight: '80px',
+                        lineHeight: '1.5',
+                        padding: '0',
+                        transition: 'all 0.2s ease-out',
+                        fontFamily: 'inherit',
+                      }}
+                      rows={1}
+                    />
+
+                    {/* Loading Indicator */}
+                    {loading && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.75rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        fontWeight: '500',
+                        letterSpacing: '0.2px',
+                      }}>
+                        <div style={{
+                          width: '4px',
+                          height: '4px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                          animation: 'pulse 1.4s infinite',
+                        }}></div>
+                        <span>Thinking</span>
+                      </div>
+                    )}
+
+                    <Button
+                      type="submit"
+                      disabled={!input.trim() || loading}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        minWidth: '40px',
+                        minHeight: '40px',
+                        borderRadius: '50%',
+                        background: loading || !input.trim()
+                          ? 'rgba(255,255,255,0.08)'
+                          : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        border: 'none',
+                        cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease-out',
+                        fontSize: '16px',
+                        boxShadow: (loading || !input.trim())
+                          ? 'none'
+                          : '0 4px 12px rgba(16, 185, 129, 0.3)',
+                        flexShrink: 0,
+                        padding: '0',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading && input.trim()) {
+                          e.currentTarget.style.transform = 'scale(1.1) rotate(5deg) translateY(-2px)'
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading && input.trim()) {
+                          e.currentTarget.style.transform = 'scale(1) rotate(0deg) translateY(0)'
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)'
+                        }
+                      }}
+                    >
+                      {loading ? (
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid rgba(255,255,255,0.25)',
+                          borderTop: '2px solid rgba(255,255,255,0.9)',
+                          borderRadius: '50%',
+                          animation: 'spin 0.7s linear infinite',
+                        }}></div>
+                      ) : (
+                        <span style={{ fontSize: '18px', lineHeight: '1', fontWeight: '600' }}>→</span>
+                      )}
+                    </Button>
+                  </form>
+                </div>
+
               </div>
             )}
             {messages.map((msg) => (
               <div key={msg.id} className={msg.role === 'user' ? 'message-slide-up' : 'message-fade-in'} style={{
                 display: 'flex',
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: '8px',
+                transition: 'all 180ms ease-out',
               }}>
                 <div style={{
-                  padding: '12px 16px',
+                  padding: msg.role === 'user' ? '10px 16px' : '12px 16px',
                   borderRadius: '16px',
-                  maxWidth: '70%',
+                  maxWidth: '80%',
                   background: msg.role === 'user'
-                    ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
-                    : 'rgba(255,255,255,0.08)',
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                    : 'rgba(255,255,255,0.06)',
                   backdropFilter: msg.role === 'assistant' ? 'blur(8px)' : 'none',
-                  border: msg.role === 'assistant' ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                  boxShadow: msg.role === 'user' ? '0 2px 8px rgba(59, 130, 246, 0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
+                  border: msg.role === 'assistant' ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                  boxShadow: msg.role === 'user'
+                    ? '0 2px 8px rgba(16, 185, 129, 0.2)'
+                    : '0 2px 4px rgba(0,0,0,0.1)',
                   wordWrap: 'break-word',
                   whiteSpace: 'pre-wrap',
                   fontSize: '0.95rem',
-                  lineHeight: '1.4',
-                  color: 'white',
-                  transition: 'all 0.18s ease-out',
+                  lineHeight: '1.5',
+                  color: msg.role === 'user' ? 'white' : 'rgba(255,255,255,0.9)',
+                  transition: 'all 180ms ease-out',
+                  overflowWrap: 'break-word',
                 }}>
                   {msg.content}
                   {msg.type === 'task' && (
                     <div style={{
-                      marginTop: '8px',
-                      padding: '4px 8px',
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      borderRadius: '8px',
+                      marginTop: '10px',
+                      paddingTop: '10px',
+                      borderTop: '1px solid rgba(255,255,255,0.1)',
                       fontSize: '0.8rem',
                       color: '#10b981',
-                      display: 'inline-block',
+                      fontWeight: '500',
                     }}>
-                      Task created
+                      ✓ Task created
                     </div>
                   )}
                 </div>
@@ -361,21 +946,21 @@ export function ChatPage() {
                 <div style={{
                   padding: '12px 16px',
                   borderRadius: '16px',
-                  background: 'rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.06)',
                   backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)',
                   fontSize: '0.95rem',
-                  opacity: 0.7,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  color: 'rgba(255,255,255,0.7)',
                 }}>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <div className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }}></div>
-                    <div className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }}></div>
-                    <div className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }}></div>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div className="typing-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)' }}></div>
+                    <div className="typing-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)' }}></div>
+                    <div className="typing-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)' }}></div>
                   </div>
-                  Thinking...
+                  <span style={{ fontWeight: '500' }}>Thinking…</span>
                 </div>
               </div>
             )}
@@ -383,92 +968,148 @@ export function ChatPage() {
           </div>
         </div>
 
-        {/* Message Input Composer */}
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100%',
-          maxWidth: '960px',
-          padding: '0 24px',
-        }}>
-          <form onSubmit={handleSubmit} className="input-form" style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: '12px',
-            background: 'rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '28px',
-            padding: '12px 20px',
-            transition: 'all 0.18s ease-out',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        {/* New Message Input Box - Only show when there are messages or loading */}
+        {(messages.length > 0 || loading) && (
+          <div style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '100%',
+            maxWidth: '720px',
+            padding: '0 24px',
+            zIndex: 20,
+            pointerEvents: 'none',
           }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              background: inputFocused
+                ? 'rgba(255,255,255,0.18)'
+                : 'rgba(255,255,255,0.09)',
+              backdropFilter: 'blur(16px)',
+              border: inputFocused
+                ? '1.5px solid rgba(16, 185, 129, 0.6)'
+                : '1.5px solid rgba(255,255,255,0.12)',
+              borderRadius: '24px',
+              padding: inputFocused ? '16px 20px' : '12px 18px',
+              transition: 'all 0.25s ease-out',
+              boxShadow: inputFocused
+                ? '0 16px 40px rgba(16, 185, 129, 0.25), 0 0 20px rgba(16, 185, 129, 0.1)'
+                : '0 6px 20px rgba(0,0,0,0.16)',
+              pointerEvents: 'auto',
+              transform: inputFocused ? 'translateY(-2px)' : 'translateY(0)',
+            }}
+          >
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me anything..."
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              placeholder={input.length > 0 ? '' : displayedPlaceholder}
               style={{
                 flex: 1,
                 border: 'none',
                 background: 'transparent',
-                color: 'white',
-                fontSize: '1rem',
+                color: 'rgba(255,255,255,0.95)',
+                fontSize: '0.95rem',
                 resize: 'none',
                 outline: 'none',
                 minHeight: '20px',
                 maxHeight: '80px',
-                lineHeight: '1.4',
+                lineHeight: '1.5',
                 padding: '0',
-                transition: 'all 0.18s ease-out',
+                transition: 'all 0.2s ease-out',
+                fontFamily: 'inherit',
               }}
               rows={1}
             />
+
+            {/* Loading Indicator */}
+            {loading && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.75rem',
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: '500',
+                letterSpacing: '0.2px',
+              }}>
+                <div style={{
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                  animation: 'pulse 1.4s infinite',
+                }}></div>
+                <span>Thinking</span>
+              </div>
+            )}
+
             <Button
               type="submit"
               disabled={!input.trim() || loading}
               style={{
-                width: '44px',
-                height: '44px',
+                width: '40px',
+                height: '40px',
+                minWidth: '40px',
+                minHeight: '40px',
                 borderRadius: '50%',
-                background: loading ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                background: loading || !input.trim()
+                  ? 'rgba(255,255,255,0.08)'
+                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white',
                 border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.18s ease-out',
-                transform: 'scale(1)',
-                fontSize: '18px',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                transition: 'all 0.2s ease-out',
+                fontSize: '16px',
+                boxShadow: (loading || !input.trim())
+                  ? 'none'
+                  : '0 4px 12px rgba(16, 185, 129, 0.3)',
+                flexShrink: 0,
+                padding: '0',
               }}
               onMouseEnter={(e) => {
-                if (!loading) e.currentTarget.style.transform = 'scale(1.05)'
+                if (!loading && input.trim()) {
+                  e.currentTarget.style.transform = 'scale(1.1) rotate(5deg) translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)'
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)'
+                if (!loading && input.trim()) {
+                  e.currentTarget.style.transform = 'scale(1) rotate(0deg) translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }
               }}
             >
               {loading ? (
                 <div style={{
-                  width: '20px',
-                  height: '20px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTop: '2px solid white',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid rgba(255,255,255,0.25)',
+                  borderTop: '2px solid rgba(255,255,255,0.9)',
                   borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
+                  animation: 'spin 0.7s linear infinite',
                 }}></div>
               ) : (
-                '➤'
+                <span style={{ fontSize: '18px', lineHeight: '1', fontWeight: '600' }}>→</span>
               )}
             </Button>
           </form>
-        </div>
+          </div>
+        )}
       </div>
     </>
   )
 }
+
+

@@ -197,6 +197,7 @@ export function createBhivApi(client: ApiClient) {
           input: { message: req.message },
           context: { platform: req.platform || 'web' },
         },
+        timeoutMs: 30_000,
       }),
   }
 }
